@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Diária de Produção · Latão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#F1F2F5;
+    --surface:#FFFFFF;
+    --surface-warm:#FBFAF6;
+    --ink:#1B1F27;
+    --ink-soft:#6B7280;
+    --ink-faint:#9AA1AC;
+    --brass:#B08D57;
+    --brass-deep:#8A6D3F;
+    --brass-light:#EDE1CB;
+    --ok:#1F9D55;
+    --ok-bg:#E6F5EC;
+    --warn:#C98A00;
+    --warn-bg:#FCF1DC;
+    --crit:#C7414F;
+    --crit-bg:#FBE7E9;
+    --hairline:#E3E1DA;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(27,31,39,0.04), 0 8px 24px rgba(27,31,39,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- Top nav ---------- */
+  .topnav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px; background:var(--surface); border-bottom:1px solid var(--hairline);
+    position:sticky; top:0; z-index:50;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, var(--brass) 0%, var(--brass-deep) 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.35), 0 2px 6px rgba(138,109,63,0.35);
+  }
+  .brand-mark svg{width:18px;height:18px;}
+  .brand-text .eyebrow{font-size:11px; letter-spacing:.12em; color:var(--ink-faint); text-transform:uppercase; font-weight:600;}
+  .brand-text .title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; line-height:1.1;}
+  .tabs{display:flex; gap:4px; background:var(--bg); padding:4px; border-radius:10px;}
+  .tab-btn{
+    border:none; background:transparent; padding:8px 16px; border-radius:8px;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px; color:var(--ink-soft);
+    cursor:pointer; transition:all .15s ease;
+  }
+  .tab-btn.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow);}
+  .tab-btn.tv-btn{color:var(--brass-deep);}
+  .tab-btn.tv-btn.active{background:var(--ink); color:#fff;}
+  .nav-clock{text-align:right;}
+  .nav-clock .time{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600;}
+  .nav-clock .date{font-size:11px; color:var(--ink-soft); text-transform:capitalize;}
+
+  main{max-width:1360px; margin:0 auto; padding:24px 28px 60px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---------- Process switch bar ---------- */
+  .proc-bar{
+    display:flex; align-items:center; gap:14px; padding:10px 28px;
+    background:var(--surface-warm); border-bottom:1px solid var(--hairline);
+    position:sticky; top:63px; z-index:40;
+  }
+  .proc-bar-label{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); font-weight:700;}
+  .proc-switch{display:flex; gap:6px;}
+  .proc-btn{
+    border:1px solid var(--hairline); background:var(--surface); color:var(--ink-soft);
+    padding:7px 16px; border-radius:20px; font-family:'Inter',sans-serif; font-weight:600; font-size:12.5px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .proc-btn:hover{border-color:var(--brass); color:var(--brass-deep);}
+  .proc-btn.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  /* ---------- Overview mini-cards (3 processos) ---------- */
+  .overview-row{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;}
+  .milestones-card{margin-bottom:20px;}
+  .milestones-card td.mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- MODO TV (kiosk rotativo, leitura a 5-10m) ---------- */
+  body.tv-active main{max-width:none; padding:0;}
+  body.tv-active .proc-bar{display:none;}
+  #view-tv{position:relative; height:calc(100vh - 63px); overflow:hidden; background:var(--surface);}
+  .tv-screen{
+    position:absolute; inset:0; padding:56px 72px 40px; opacity:0; pointer-events:none;
+    transition:opacity .9s ease; display:flex; flex-direction:column; background:var(--surface);
+  }
+  .tv-screen.show{opacity:1; pointer-events:auto;}
+  .tv-dots{position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:12px; z-index:5;}
+  .tv-dots span{width:12px; height:12px; border-radius:50%; background:var(--hairline); transition:background .2s;}
+  .tv-dots span.on{background:var(--brass);}
+
+  .tv-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:34px;}
+  .tv-proc-name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:58px; line-height:1;}
+  .tv-andon{display:flex; align-items:center; gap:20px;}
+  .tv-andon-dot{width:30px; height:30px; border-radius:50%; position:relative; flex:none;}
+  .tv-andon-dot::after{content:''; position:absolute; inset:-11px; border-radius:50%; opacity:.35; animation:pulse 2s ease-in-out infinite;}
+  .tv-andon-dot.ok{background:var(--ok);} .tv-andon-dot.ok::after{background:var(--ok);}
+  .tv-andon-dot.warn{background:var(--warn);} .tv-andon-dot.warn::after{background:var(--warn);}
+  .tv-andon-dot.crit{background:var(--crit);} .tv-andon-dot.crit::after{background:var(--crit);}
+  .tv-andon-label{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:40px;}
+
+  .tv-kpi-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:34px; margin-bottom:34px;}
+  .tv-kpi{background:var(--surface-warm); border:1px solid var(--hairline); border-radius:22px; padding:30px 20px; text-align:center;}
+  .tv-kpi .tv-kpi-label{font-size:21px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:14px;}
+  .tv-kpi .tv-kpi-value{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:78px; line-height:1;}
+  .tv-kpi .tv-kpi-value.ok{color:var(--ok);} .tv-kpi .tv-kpi-value.warn{color:var(--warn);} .tv-kpi .tv-kpi-value.crit{color:var(--crit);}
+
+  .tv-gauge-row{display:flex; align-items:center; gap:70px; flex:1; min-height:0;}
+  .tv-gauge-big{position:relative; width:380px; flex:none;}
+  .tv-gauge-ring{position:absolute; inset:0; border-radius:50%;}
+  .tv-gauge-hole{position:absolute; inset:38px; border-radius:50%; background:var(--surface);}
+  .tv-gauge-big .tv-gauge-pct{position:absolute; inset:0; top:26px; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:100px;}
+  .tv-ritmo{flex:1;}
+  .tv-ritmo .tv-ritmo-label{font-size:23px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.07em; font-weight:700; margin-bottom:10px;}
+  .tv-ritmo .tv-ritmo-value{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:68px;}
+  .tv-ritmo .tv-ritmo-sub{font-size:24px; color:var(--ink-soft); margin-top:18px; line-height:1.5;}
+  .tv-ritmo .tv-ritmo-sub b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
+
+  .tv-footer{display:flex; justify-content:space-between; font-size:21px; color:var(--ink-faint); margin-top:26px;}
+
+  .tv-marcos-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:52px; margin-bottom:8px;}
+  .tv-marcos-sub{font-size:23px; color:var(--ink-soft); margin-bottom:20px;}
+  .tv-marcos-bigpct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:150px; text-align:center; line-height:1; color:var(--brass-deep);}
+  .tv-marcos-bigsub{text-align:center; font-size:26px; color:var(--ink-soft); margin-top:6px;}
+  .tv-marcos-track{height:30px; border-radius:16px; background:var(--hairline); overflow:hidden; margin:26px 0 40px;}
+  .tv-marcos-fill{height:100%; background:linear-gradient(90deg, var(--brass-deep), var(--brass));}
+  .tv-marcos-timeline{display:flex; justify-content:space-between; align-items:flex-start; flex:1;}
+  .tv-marcos-point{display:flex; flex-direction:column; align-items:center; gap:12px; flex:1;}
+  .tv-marcos-dot{width:26px; height:26px; border-radius:50%;}
+  .tv-marcos-dot.ok{background:var(--ok);}
+  .tv-marcos-dot.crit{background:var(--crit);}
+  .tv-marcos-dot.pending{background:var(--surface); border:3px solid var(--ink-faint);}
+  .tv-marcos-date{font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--ink-soft); text-align:center;}
+  .tv-marcos-target{font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--ink-faint);}
+  .mini-card{
+    background:var(--surface); border:1px solid var(--hairline); border-radius:var(--radius);
+    padding:14px 16px; box-shadow:var(--shadow); cursor:pointer; transition:border-color .15s ease, transform .1s ease;
+    display:flex; align-items:center; gap:12px;
+  }
+  .mini-card:hover{transform:translateY(-1px);}
+  .mini-card.is-active{border-color:var(--brass); box-shadow:0 0 0 2px var(--brass-light), var(--shadow);}
+  .mini-card .mini-dot{width:11px; height:11px; border-radius:50%; flex:none;}
+  .mini-card .mini-dot.ok{background:var(--ok);} .mini-card .mini-dot.warn{background:var(--warn);} .mini-card .mini-dot.crit{background:var(--crit);}
+  .mini-card .mini-body{flex:1; min-width:0;}
+  .mini-card .mini-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mini-card .mini-sub{font-size:11.5px; color:var(--ink-soft); margin-top:1px;}
+  .mini-card .mini-pct{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:20px; flex:none;}
+  .mini-card .mini-pct.ok{color:var(--ok);} .mini-card .mini-pct.warn{color:var(--warn);} .mini-card .mini-pct.crit{color:var(--crit);}
+
+  @media (max-width:640px){
+    .proc-bar{flex-wrap:wrap; padding:10px 16px; top:auto; position:static;}
+    .overview-row{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Andon strip ---------- */
+  .andon-strip{
+    display:flex; align-items:center; gap:16px; padding:14px 20px; border-radius:var(--radius);
+    margin-bottom:20px; border:1px solid var(--hairline); background:var(--surface);
+  }
+  .andon-dot{width:14px; height:14px; border-radius:50%; flex:none; position:relative;}
+  .andon-dot::after{
+    content:''; position:absolute; inset:-6px; border-radius:50%; opacity:.35;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  .andon-dot.ok{background:var(--ok);} .andon-dot.ok::after{background:var(--ok);}
+  .andon-dot.warn{background:var(--warn);} .andon-dot.warn::after{background:var(--warn);}
+  .andon-dot.crit{background:var(--crit);} .andon-dot.crit::after{background:var(--crit);}
+  @keyframes pulse{0%,100%{transform:scale(1); opacity:.35;} 50%{transform:scale(1.6); opacity:0;}}
+  .andon-label{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;}
+  .andon-sub{color:var(--ink-soft); font-size:13px;}
+  .andon-strip .spacer{flex:1;}
+  .andon-period{font-size:12px; color:var(--ink-faint); text-align:right;}
+
+  /* ---------- Hero grid ---------- */
+  .hero-grid{
+    display:grid; grid-template-columns: 1.1fr 1fr 0.85fr; gap:18px; margin-bottom:20px;
+  }
+  .card{
+    background:var(--surface); border:1px solid var(--hairline); border-radius:var(--radius);
+    padding:22px; box-shadow:var(--shadow);
+  }
+  .card-warm{background:var(--surface-warm);}
+  .card-label{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-bottom:4px;}
+
+  /* Gauge */
+  .gauge-card{display:flex; flex-direction:column; align-items:center; justify-content:flex-start; text-align:center;}
+  .gauge-wrap{position:relative; width:100%; max-width:300px;}
+  .gauge-readout{margin-top:-46px;}
+  .gauge-pct{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:44px; line-height:1;}
+  .gauge-caption{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .gauge-legend{display:flex; gap:14px; margin-top:14px; font-size:11px; color:var(--ink-soft);}
+  .gauge-legend span{display:flex; align-items:center; gap:5px;}
+  .legend-dot{width:8px; height:8px; border-radius:2px; display:inline-block;}
+
+  /* Stat stack */
+  .stat-stack{display:flex; flex-direction:column; gap:14px;}
+  .stat-row{display:flex; align-items:baseline; justify-content:space-between; padding-bottom:12px; border-bottom:1px solid var(--hairline);}
+  .stat-row:last-child{border-bottom:none; padding-bottom:0;}
+  .stat-row .label{font-size:13px; color:var(--ink-soft); font-weight:500;}
+  .stat-row .value{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:22px;}
+  .value.ok{color:var(--ok);} .value.warn{color:var(--warn);} .value.crit{color:var(--crit);}
+
+  /* Ritmo card */
+  .ritmo-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:38px; margin:6px 0 2px;}
+  .ritmo-unit{font-size:13px; color:var(--ink-soft);}
+  .ritmo-divider{height:1px; background:var(--hairline); margin:16px 0;}
+  .mini-stat{display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;}
+  .mini-stat b{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+
+  /* ---------- Charts ---------- */
+  .chart-card{margin-bottom:18px;}
+  .chart-card-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px;}
+  .chart-card-head h3{font-family:'Space Grotesk',sans-serif; font-size:15px; margin:0;}
+  .chart-card-head span{font-size:12px; color:var(--ink-soft);}
+  .chart-box{height:280px;}
+  .chart-box.small{height:220px;}
+  .charts-row{display:grid; grid-template-columns: 1.6fr 1fr; gap:18px;}
+
+  /* ---------- Tables (Apontamento / Cronograma) ---------- */
+  .toolbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px; border-radius:8px; border:1px solid var(--hairline);
+    background:var(--surface); color:var(--ink); padding:9px 16px; cursor:pointer; transition:all .15s ease;
+  }
+  .btn:hover{border-color:var(--brass); color:var(--brass-deep);}
+  .btn.primary{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .btn.primary:hover{background:var(--brass-deep); border-color:var(--brass-deep); color:#fff;}
+  .btn.ghost{background:transparent;}
+  .btn.danger:hover{border-color:var(--crit); color:var(--crit);}
+  .btn.small{padding:6px 12px; font-size:12px;}
+
+  .data-table{width:100%; border-collapse:collapse; background:var(--surface); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow);}
+  .data-table thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint);
+    font-weight:600; padding:12px 16px; border-bottom:1px solid var(--hairline); background:var(--surface-warm);
+  }
+  .data-table tbody td{padding:10px 16px; border-bottom:1px solid var(--hairline); font-size:13px; vertical-align:middle;}
+  .data-table tbody tr:last-child td{border-bottom:none;}
+  .data-table tbody tr.is-cursor{background:var(--brass-light);}
+  .data-table tbody tr.is-off td{color:var(--ink-faint); font-style:italic;}
+  .data-table input[type=number]{
+    width:90px; padding:6px 8px; border-radius:6px; border:1px solid var(--hairline);
+    font-family:'IBM Plex Mono',monospace; font-size:13px;
+  }
+  .data-table input[type=number]:focus{outline:2px solid var(--brass); border-color:var(--brass);}
+  .badge{display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600;}
+  .badge.ok{background:var(--ok-bg); color:var(--ok);}
+  .badge.warn{background:var(--warn-bg); color:var(--warn);}
+  .badge.crit{background:var(--crit-bg); color:var(--crit);}
+  .badge.pending{background:var(--bg); color:var(--ink-faint);}
+  .table-scroll{max-height:560px; overflow-y:auto; border-radius:var(--radius); box-shadow:var(--shadow);}
+  .table-scroll .data-table{box-shadow:none; border-radius:0;}
+  .table-scroll thead th{position:sticky; top:0; z-index:2;}
+  .month-sep td{background:var(--bg); font-weight:700; color:var(--ink-soft); font-size:11px; text-transform:uppercase; letter-spacing:.08em; padding:8px 16px;}
+
+  /* ---------- Admin panel ---------- */
+  .admin-grid{display:grid; grid-template-columns: 1fr 1fr; gap:18px; margin-bottom:20px;}
+  .field-row{display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:14px;}
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field label{font-size:12px; color:var(--ink-soft); font-weight:600;}
+  .field input, .field select{
+    padding:8px 10px; border-radius:8px; border:1px solid var(--hairline); font-family:'Inter'; font-size:13px; min-width:120px;
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--brass); border-color:var(--brass);}
+  .config-note{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:10px;}
+  textarea.io-box{width:100%; min-height:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:10px; border-radius:8px; border:1px solid var(--hairline); resize:vertical;}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); opacity:0;
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:500;
+    transition:all .25s ease; z-index:200; pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:1100px){
+    .hero-grid{grid-template-columns:1fr;}
+    .charts-row{grid-template-columns:1fr;}
+    .admin-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .topnav{flex-wrap:wrap; gap:10px; padding:12px 16px;}
+    main{padding:16px;}
+    .tabs{order:3; width:100%; justify-content:space-between;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 17L12 4L20 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 17L12 10L16 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/></svg>
+    </div>
+    <div class="brand-text">
+      <div class="eyebrow">Exportação Tipo A</div>
+      <div class="title">Meta Diária de Produção</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-view="painel">Painel</button>
+    <button class="tab-btn" data-view="apontamento">Apontamento</button>
+    <button class="tab-btn" data-view="marcos">Marcos</button>
+    <button class="tab-btn" data-view="cronograma">Cronograma</button>
+    <button class="tab-btn tv-btn" data-view="tv">▶ Modo TV</button>
+  </div>
+  <div class="nav-clock">
+    <div class="time mono" id="navTime">--:--:--</div>
+    <div class="date" id="navDate">-</div>
+  </div>
+</div>
+
+<div class="proc-bar">
+  <span class="proc-bar-label">Processo</span>
+  <div class="proc-switch" id="procSwitch">
+    <button class="proc-btn active" data-proc="galvanoplastia">Galvanoplastia</button>
+    <button class="proc-btn" data-proc="forno">Forno</button>
+    <button class="proc-btn" data-proc="esteira">Esteira de Seleção</button>
+  </div>
+</div>
+
+<main>
+
+  <!-- ================= PAINEL ================= -->
+  <section class="view active" id="view-painel">
+    <div class="overview-row" id="overviewRow"></div>
+
+    <div class="card milestones-card">
+      <div class="chart-card-head" style="margin-bottom:10px;">
+        <h3>Marcos de Entrega do Projeto</h3>
+        <span>Acumulado real da Esteira de Seleção × meta de <span class="mono">660,0 t</span> — base: embarques Pedido 3 + Pedido 4</span>
+      </div>
+      <div class="table-scroll" style="max-height:none;">
+        <table class="data-table">
+          <thead><tr><th>Data do marco</th><th>Meta acumulada (t)</th><th>Real acumulado (t)</th><th>Situação</th></tr></thead>
+          <tbody id="milestonesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="andon-strip">
+      <div class="andon-dot ok" id="andonDot"></div>
+      <div>
+        <div class="andon-label" id="andonLabel">Carregando…</div>
+        <div class="andon-sub" id="andonSub">—</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="andon-period" id="andonPeriod">—</div>
+    </div>
+
+    <div class="hero-grid">
+      <div class="card gauge-card">
+        <div class="card-label">Aderência acumulada ao cronograma</div>
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 300 175" id="gaugeSvg" style="width:100%;">
+            <path d="M30,150 A120,120 0 0 1 270,150" fill="none" stroke="#EDEAE0" stroke-width="18" stroke-linecap="round"/>
+            <path id="gaugeZoneCrit" fill="none" stroke="#C7414F" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+            <path id="gaugeZoneWarn" fill="none" stroke="#C98A00" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+            <path id="gaugeZoneOk" fill="none" stroke="#1F9D55" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+            <path id="gaugeFill" d="M30,150 A120,120 0 0 1 270,150" fill="none" stroke="#B08D57" stroke-width="18" stroke-linecap="round"/>
+            <circle cx="150" cy="150" r="9" fill="#1B1F27"/>
+            <line id="gaugeNeedle" x1="150" y1="150" x2="150" y2="42" stroke="#1B1F27" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <div class="gauge-readout">
+            <div class="gauge-pct" id="gaugePct">--%</div>
+            <div class="gauge-caption" id="gaugeCaption">Real acumulado ÷ meta acumulada</div>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span><i class="legend-dot" style="background:#C7414F"></i>Crítico</span>
+          <span><i class="legend-dot" style="background:#C98A00"></i>Atenção</span>
+          <span><i class="legend-dot" style="background:#1F9D55"></i>No prazo</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Balanço acumulado (t)</div>
+        <div class="stat-stack">
+          <div class="stat-row"><span class="label">Meta acumulada</span><span class="value mono" id="statMetaAcum">--</span></div>
+          <div class="stat-row"><span class="label">Real acumulado</span><span class="value mono" id="statRealAcum">--</span></div>
+          <div class="stat-row"><span class="label">Diferença</span><span class="value mono" id="statDiff">--</span></div>
+        </div>
+      </div>
+
+      <div class="card card-warm">
+        <div class="card-label">Ritmo necessário</div>
+        <div class="ritmo-num mono" id="ritmoValor">--</div>
+        <div class="ritmo-unit">toneladas / dia útil para fechar o cronograma</div>
+        <div class="ritmo-divider"></div>
+        <div class="mini-stat"><span>Dias restantes</span><b id="ritmoDiasRestantes">--</b></div>
+        <div class="mini-stat"><span>Meta diária atual</span><b id="ritmoMetaAtual">--</b></div>
+        <div class="mini-stat"><span>Equivalente em dias</span><b id="ritmoDiasEquiv">--</b></div>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="chart-card-head">
+        <h3>Meta acumulada × Real acumulado</h3>
+        <span>Todo o período do cronograma</span>
+      </div>
+      <div class="chart-box"><canvas id="chartAcum"></canvas></div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card chart-card" style="margin-bottom:0;">
+        <div class="chart-card-head">
+          <h3>Produção diária — últimos dias</h3>
+          <span id="dailyChartRange">—</span>
+        </div>
+        <div class="chart-box small"><canvas id="chartDaily"></canvas></div>
+      </div>
+      <div class="card chart-card" style="margin-bottom:0;">
+        <div class="chart-card-head">
+          <h3>Aderência por semana</h3>
+          <span>% real / meta</span>
+        </div>
+        <div class="chart-box small"><canvas id="chartWeekly"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= APONTAMENTO ================= -->
+  <section class="view" id="view-apontamento">
+    <div class="toolbar">
+      <button class="btn primary" id="btnJumpPending">Ir para o próximo dia pendente</button>
+      <button class="btn" id="btnClearReal">Limpar todos os apontamentos</button>
+      <div class="spacer"></div>
+      <span class="config-note" style="margin:0;">Preencha o "Real diário" de cada dia útil — os totais do Painel são recalculados na hora e ficam visíveis para todos que abrirem este painel (inclusive a TV).</span>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>Data</th><th>Dia</th><th>Meta (t)</th><th>Real (t)</th><th>Status</th></tr>
+        </thead>
+        <tbody id="apontamentoBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= MARCOS DE ENTREGA ================= -->
+  <section class="view" id="view-marcos">
+    <div class="toolbar">
+      <div class="config-note" style="margin:0;">Lance aqui o <b>acumulado real entregue</b> em cada marco (não é calculado automaticamente a partir da produção — é uma confirmação própria de embarque/entrega). Base: coluna "Total Entrega" da aba Planejamento (Pedido 3 + Pedido 4), meta final do projeto de 660,0 t.</div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>Data do marco</th><th>Meta acumulada (t)</th><th>Real acumulado entregue (t)</th><th>Situação</th></tr>
+        </thead>
+        <tbody id="marcosBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= CRONOGRAMA ================= -->
+  <section class="view" id="view-cronograma">
+    <div class="config-note" style="margin:-4px 0 4px;">Configurando: <b id="cronoProcTitle">—</b> · o cronograma já vem projetado a partir da planilha (Galvanoplastia/Forno até 8 t/dia, Esteira de Seleção 9,6 t/dia seg-sex, todas fechando as 660 t do projeto). Ajuste dias, metas ou adicione mais período abaixo — cada processo tem seu próprio cronograma, apontamento e limites de Andon.</div>
+    <div class="admin-grid">
+      <div class="card">
+        <div class="card-label">Limites do Andon</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Verde a partir de (%)</label>
+            <input type="number" id="cfgWarnThreshold" step="0.5" min="0" max="100">
+          </div>
+          <div class="field">
+            <label>Âmbar a partir de (%)</label>
+            <input type="number" id="cfgCritThreshold" step="0.5" min="0" max="100">
+          </div>
+          <button class="btn primary" id="btnSaveConfig">Salvar limites</button>
+        </div>
+        <div class="config-note">Abaixo do limite de âmbar, o status vira crítico (vermelho). Esses limites definem a cor do Andon e dos indicadores em todo o portal.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Adicionar dias ao cronograma</div>
+        <div class="field-row">
+          <div class="field"><label>Data inicial</label><input type="date" id="addStartDate"></div>
+          <div class="field"><label>Quantidade de dias</label><input type="number" id="addQty" min="1" value="7"></div>
+          <div class="field"><label>Meta diária (t)</label><input type="number" step="0.1" id="addMeta" value="8"></div>
+          <div class="field">
+            <label>Sábados</label>
+            <select id="addIncludeSaturday"><option value="on">Dia útil</option><option value="off">Folga</option></select>
+          </div>
+          <div class="field">
+            <label>Domingos</label>
+            <select id="addIncludeSunday"><option value="off">Folga</option><option value="on">Dia útil</option></select>
+          </div>
+          <button class="btn primary" id="btnAddDays">Adicionar</button>
+        </div>
+        <div class="config-note">Os dias são adicionados ao final do cronograma atual, em sequência. Dica: Galvanoplastia/Forno trabalham sábado (deixe "Dia útil"); a Esteira de Seleção é só de segunda a sexta (troque Sábados para "Folga").</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn" id="btnResetDemo">Restaurar cronograma projetado</button>
+      <button class="btn" id="btnExport">Exportar dados (JSON)</button>
+      <button class="btn danger" id="btnWipe">Apagar tudo</button>
+    </div>
+
+    <div id="exportBox" style="display:none; margin-bottom:16px;">
+      <textarea class="io-box" id="exportArea" readonly></textarea>
+    </div>
+
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>Data</th><th>Dia</th><th>Tipo</th><th>Meta diária (t)</th><th></th></tr>
+        </thead>
+        <tbody id="cronogramaBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= MODO TV (kiosk rotativo) ================= -->
+  <section class="view" id="view-tv">
+    <div class="tv-screen" id="tvScreen-galvanoplastia" data-proc="galvanoplastia"></div>
+    <div class="tv-screen" id="tvScreen-forno" data-proc="forno"></div>
+    <div class="tv-screen" id="tvScreen-esteira" data-proc="esteira"></div>
+    <div class="tv-screen" id="tvScreen-marcos"></div>
+    <div class="tv-dots" id="tvDots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   PROCESSOS MONITORADOS
+   Cada processo tem seu próprio cronograma (metas diárias), apontamentos
+   reais e limites de Andon — tudo configurável na aba Cronograma.
+   Não vem nenhuma meta pré-carregada: defina os dias e as metas de cada
+   processo em Cronograma → "Adicionar dias ao cronograma".
+   ========================================================================= */
+const PROCESSES = [
+  { id:'galvanoplastia', label:'Galvanoplastia' },
+  { id:'forno',          label:'Forno' },
+  { id:'esteira',        label:'Esteira de Seleção' }
+];
+let currentProcess = PROCESSES[0].id;
+
+/* Cronogramas projetados a partir da aba PLANEJAMENTO (20/07/2026 em diante),
+   respeitando: Galvanoplastia e Forno com meta MÁXIMA de 8 t/dia (mesmo ritmo
+   já usado na planilha, trabalhando de segunda a sábado, domingo é folga);
+   Esteira de Seleção com meta fixa de 9,6 t/dia, segunda a sexta. As três
+   fecham exatamente as 660 t do projeto (o último dia de cada uma fica com
+   um valor parcial, menor que a meta máxima, só para fechar a conta certinha). */
+const PROJETO_TOTAL_TON = 660;
+const DEFAULT_SCHEDULES = {
+  galvanoplastia: [{"date": "2026-07-20", "meta": null}, {"date": "2026-07-21", "meta": null}, {"date": "2026-07-22", "meta": 6}, {"date": "2026-07-23", "meta": 6}, {"date": "2026-07-24", "meta": 6}, {"date": "2026-07-25", "meta": 6}, {"date": "2026-07-26", "meta": 6}, {"date": "2026-07-27", "meta": 6}, {"date": "2026-07-28", "meta": 6}, {"date": "2026-07-29", "meta": 6}, {"date": "2026-07-30", "meta": 6}, {"date": "2026-07-31", "meta": 6}, {"date": "2026-08-01", "meta": 6}, {"date": "2026-08-02", "meta": null}, {"date": "2026-08-03", "meta": 8}, {"date": "2026-08-04", "meta": 8}, {"date": "2026-08-05", "meta": 8}, {"date": "2026-08-06", "meta": 8}, {"date": "2026-08-07", "meta": 8}, {"date": "2026-08-08", "meta": 8}, {"date": "2026-08-09", "meta": null}, {"date": "2026-08-10", "meta": 8}, {"date": "2026-08-11", "meta": 8}, {"date": "2026-08-12", "meta": 8}, {"date": "2026-08-13", "meta": 8}, {"date": "2026-08-14", "meta": 8}, {"date": "2026-08-15", "meta": 8}, {"date": "2026-08-16", "meta": null}, {"date": "2026-08-17", "meta": 8}, {"date": "2026-08-18", "meta": 8}, {"date": "2026-08-19", "meta": 8}, {"date": "2026-08-20", "meta": 8}, {"date": "2026-08-21", "meta": 8}, {"date": "2026-08-22", "meta": 8}, {"date": "2026-08-23", "meta": null}, {"date": "2026-08-24", "meta": 8}, {"date": "2026-08-25", "meta": 8}, {"date": "2026-08-26", "meta": 8}, {"date": "2026-08-27", "meta": 8}, {"date": "2026-08-28", "meta": 8}, {"date": "2026-08-29", "meta": 8}, {"date": "2026-08-30", "meta": null}, {"date": "2026-08-31", "meta": 8}, {"date": "2026-09-01", "meta": 8}, {"date": "2026-09-02", "meta": 8}, {"date": "2026-09-03", "meta": 8}, {"date": "2026-09-04", "meta": 8}, {"date": "2026-09-05", "meta": 8}, {"date": "2026-09-06", "meta": null}, {"date": "2026-09-07", "meta": 8}, {"date": "2026-09-08", "meta": 8}, {"date": "2026-09-09", "meta": 8}, {"date": "2026-09-10", "meta": 8}, {"date": "2026-09-11", "meta": 8}, {"date": "2026-09-12", "meta": 8}, {"date": "2026-09-13", "meta": null}, {"date": "2026-09-14", "meta": 8}, {"date": "2026-09-15", "meta": 8}, {"date": "2026-09-16", "meta": 8}, {"date": "2026-09-17", "meta": 8}, {"date": "2026-09-18", "meta": 8}, {"date": "2026-09-19", "meta": 8}, {"date": "2026-09-20", "meta": null}, {"date": "2026-09-21", "meta": 8}, {"date": "2026-09-22", "meta": 8}, {"date": "2026-09-23", "meta": 8}, {"date": "2026-09-24", "meta": 8}, {"date": "2026-09-25", "meta": 8}, {"date": "2026-09-26", "meta": 8}, {"date": "2026-09-27", "meta": null}, {"date": "2026-09-28", "meta": 8}, {"date": "2026-09-29", "meta": 8}, {"date": "2026-09-30", "meta": 8}, {"date": "2026-10-01", "meta": 8}, {"date": "2026-10-02", "meta": 8}, {"date": "2026-10-03", "meta": 8}, {"date": "2026-10-04", "meta": null}, {"date": "2026-10-05", "meta": 8}, {"date": "2026-10-06", "meta": 8}, {"date": "2026-10-07", "meta": 8}, {"date": "2026-10-08", "meta": 8}, {"date": "2026-10-09", "meta": 8}, {"date": "2026-10-10", "meta": 8}, {"date": "2026-10-11", "meta": null}, {"date": "2026-10-12", "meta": 8}, {"date": "2026-10-13", "meta": 8}, {"date": "2026-10-14", "meta": 8}, {"date": "2026-10-15", "meta": 8}, {"date": "2026-10-16", "meta": 8}, {"date": "2026-10-17", "meta": 8}, {"date": "2026-10-18", "meta": null}, {"date": "2026-10-19", "meta": 8}, {"date": "2026-10-20", "meta": 8}, {"date": "2026-10-21", "meta": 8}, {"date": "2026-10-22", "meta": 8}, {"date": "2026-10-23", "meta": 8.0}, {"date": "2026-10-24", "meta": 8.0}, {"date": "2026-10-25", "meta": null}, {"date": "2026-10-26", "meta": 8.0}, {"date": "2026-10-27", "meta": 8.0}, {"date": "2026-10-28", "meta": 2.0}],
+  forno: [{"date": "2026-07-20", "meta": null}, {"date": "2026-07-21", "meta": null}, {"date": "2026-07-22", "meta": 6}, {"date": "2026-07-23", "meta": 6}, {"date": "2026-07-24", "meta": 6}, {"date": "2026-07-25", "meta": 6}, {"date": "2026-07-26", "meta": 6}, {"date": "2026-07-27", "meta": 6}, {"date": "2026-07-28", "meta": 6}, {"date": "2026-07-29", "meta": 6}, {"date": "2026-07-30", "meta": 6}, {"date": "2026-07-31", "meta": 6}, {"date": "2026-08-01", "meta": 6}, {"date": "2026-08-02", "meta": null}, {"date": "2026-08-03", "meta": 8}, {"date": "2026-08-04", "meta": 8}, {"date": "2026-08-05", "meta": 8}, {"date": "2026-08-06", "meta": 8}, {"date": "2026-08-07", "meta": 8}, {"date": "2026-08-08", "meta": 8}, {"date": "2026-08-09", "meta": null}, {"date": "2026-08-10", "meta": 8}, {"date": "2026-08-11", "meta": 8}, {"date": "2026-08-12", "meta": 8}, {"date": "2026-08-13", "meta": 8}, {"date": "2026-08-14", "meta": 8}, {"date": "2026-08-15", "meta": 8}, {"date": "2026-08-16", "meta": null}, {"date": "2026-08-17", "meta": 8}, {"date": "2026-08-18", "meta": 8}, {"date": "2026-08-19", "meta": 8}, {"date": "2026-08-20", "meta": 8}, {"date": "2026-08-21", "meta": 8}, {"date": "2026-08-22", "meta": 8}, {"date": "2026-08-23", "meta": null}, {"date": "2026-08-24", "meta": 8}, {"date": "2026-08-25", "meta": 8}, {"date": "2026-08-26", "meta": 8}, {"date": "2026-08-27", "meta": 8}, {"date": "2026-08-28", "meta": 8}, {"date": "2026-08-29", "meta": 8}, {"date": "2026-08-30", "meta": null}, {"date": "2026-08-31", "meta": 8}, {"date": "2026-09-01", "meta": 8}, {"date": "2026-09-02", "meta": 8}, {"date": "2026-09-03", "meta": 8}, {"date": "2026-09-04", "meta": 8}, {"date": "2026-09-05", "meta": 8}, {"date": "2026-09-06", "meta": null}, {"date": "2026-09-07", "meta": 8}, {"date": "2026-09-08", "meta": 8}, {"date": "2026-09-09", "meta": 8}, {"date": "2026-09-10", "meta": 8}, {"date": "2026-09-11", "meta": 8}, {"date": "2026-09-12", "meta": 8}, {"date": "2026-09-13", "meta": null}, {"date": "2026-09-14", "meta": 8}, {"date": "2026-09-15", "meta": 8}, {"date": "2026-09-16", "meta": 8}, {"date": "2026-09-17", "meta": 8}, {"date": "2026-09-18", "meta": 8}, {"date": "2026-09-19", "meta": 8}, {"date": "2026-09-20", "meta": null}, {"date": "2026-09-21", "meta": 8}, {"date": "2026-09-22", "meta": 8}, {"date": "2026-09-23", "meta": 8}, {"date": "2026-09-24", "meta": 8}, {"date": "2026-09-25", "meta": 8}, {"date": "2026-09-26", "meta": 8}, {"date": "2026-09-27", "meta": null}, {"date": "2026-09-28", "meta": 8}, {"date": "2026-09-29", "meta": 8}, {"date": "2026-09-30", "meta": 8}, {"date": "2026-10-01", "meta": 8}, {"date": "2026-10-02", "meta": 8}, {"date": "2026-10-03", "meta": 8}, {"date": "2026-10-04", "meta": null}, {"date": "2026-10-05", "meta": 8}, {"date": "2026-10-06", "meta": 8}, {"date": "2026-10-07", "meta": 8}, {"date": "2026-10-08", "meta": 8}, {"date": "2026-10-09", "meta": 8}, {"date": "2026-10-10", "meta": 8}, {"date": "2026-10-11", "meta": null}, {"date": "2026-10-12", "meta": 8}, {"date": "2026-10-13", "meta": 8}, {"date": "2026-10-14", "meta": 8}, {"date": "2026-10-15", "meta": 8}, {"date": "2026-10-16", "meta": 8}, {"date": "2026-10-17", "meta": 8}, {"date": "2026-10-18", "meta": null}, {"date": "2026-10-19", "meta": 8}, {"date": "2026-10-20", "meta": 8}, {"date": "2026-10-21", "meta": 8}, {"date": "2026-10-22", "meta": 8}, {"date": "2026-10-23", "meta": 8.0}, {"date": "2026-10-24", "meta": 8.0}, {"date": "2026-10-25", "meta": null}, {"date": "2026-10-26", "meta": 8.0}, {"date": "2026-10-27", "meta": 8.0}, {"date": "2026-10-28", "meta": 2.0}],
+  esteira: [{"date": "2026-07-22", "meta": 9.6}, {"date": "2026-07-23", "meta": 9.6}, {"date": "2026-07-24", "meta": 9.6}, {"date": "2026-07-25", "meta": null}, {"date": "2026-07-26", "meta": null}, {"date": "2026-07-27", "meta": 9.6}, {"date": "2026-07-28", "meta": 9.6}, {"date": "2026-07-29", "meta": 9.6}, {"date": "2026-07-30", "meta": 9.6}, {"date": "2026-07-31", "meta": 9.6}, {"date": "2026-08-01", "meta": null}, {"date": "2026-08-02", "meta": null}, {"date": "2026-08-03", "meta": 9.6}, {"date": "2026-08-04", "meta": 9.6}, {"date": "2026-08-05", "meta": 9.6}, {"date": "2026-08-06", "meta": 9.6}, {"date": "2026-08-07", "meta": 9.6}, {"date": "2026-08-08", "meta": null}, {"date": "2026-08-09", "meta": null}, {"date": "2026-08-10", "meta": 9.6}, {"date": "2026-08-11", "meta": 9.6}, {"date": "2026-08-12", "meta": 9.6}, {"date": "2026-08-13", "meta": 9.6}, {"date": "2026-08-14", "meta": 9.6}, {"date": "2026-08-15", "meta": null}, {"date": "2026-08-16", "meta": null}, {"date": "2026-08-17", "meta": 9.6}, {"date": "2026-08-18", "meta": 9.6}, {"date": "2026-08-19", "meta": 9.6}, {"date": "2026-08-20", "meta": 9.6}, {"date": "2026-08-21", "meta": 9.6}, {"date": "2026-08-22", "meta": null}, {"date": "2026-08-23", "meta": null}, {"date": "2026-08-24", "meta": 9.6}, {"date": "2026-08-25", "meta": 9.6}, {"date": "2026-08-26", "meta": 9.6}, {"date": "2026-08-27", "meta": 9.6}, {"date": "2026-08-28", "meta": 9.6}, {"date": "2026-08-29", "meta": null}, {"date": "2026-08-30", "meta": null}, {"date": "2026-08-31", "meta": 9.6}, {"date": "2026-09-01", "meta": 9.6}, {"date": "2026-09-02", "meta": 9.6}, {"date": "2026-09-03", "meta": 9.6}, {"date": "2026-09-04", "meta": 9.6}, {"date": "2026-09-05", "meta": null}, {"date": "2026-09-06", "meta": null}, {"date": "2026-09-07", "meta": 9.6}, {"date": "2026-09-08", "meta": 9.6}, {"date": "2026-09-09", "meta": 9.6}, {"date": "2026-09-10", "meta": 9.6}, {"date": "2026-09-11", "meta": 9.6}, {"date": "2026-09-12", "meta": null}, {"date": "2026-09-13", "meta": null}, {"date": "2026-09-14", "meta": 9.6}, {"date": "2026-09-15", "meta": 9.6}, {"date": "2026-09-16", "meta": 9.6}, {"date": "2026-09-17", "meta": 9.6}, {"date": "2026-09-18", "meta": 9.6}, {"date": "2026-09-19", "meta": null}, {"date": "2026-09-20", "meta": null}, {"date": "2026-09-21", "meta": 9.6}, {"date": "2026-09-22", "meta": 9.6}, {"date": "2026-09-23", "meta": 9.6}, {"date": "2026-09-24", "meta": 9.6}, {"date": "2026-09-25", "meta": 9.6}, {"date": "2026-09-26", "meta": null}, {"date": "2026-09-27", "meta": null}, {"date": "2026-09-28", "meta": 9.6}, {"date": "2026-09-29", "meta": 9.6}, {"date": "2026-09-30", "meta": 9.6}, {"date": "2026-10-01", "meta": 9.6}, {"date": "2026-10-02", "meta": 9.6}, {"date": "2026-10-03", "meta": null}, {"date": "2026-10-04", "meta": null}, {"date": "2026-10-05", "meta": 9.6}, {"date": "2026-10-06", "meta": 9.6}, {"date": "2026-10-07", "meta": 9.6}, {"date": "2026-10-08", "meta": 9.6}, {"date": "2026-10-09", "meta": 9.6}, {"date": "2026-10-10", "meta": null}, {"date": "2026-10-11", "meta": null}, {"date": "2026-10-12", "meta": 9.6}, {"date": "2026-10-13", "meta": 9.6}, {"date": "2026-10-14", "meta": 9.6}, {"date": "2026-10-15", "meta": 9.6}, {"date": "2026-10-16", "meta": 9.6}, {"date": "2026-10-17", "meta": null}, {"date": "2026-10-18", "meta": null}, {"date": "2026-10-19", "meta": 9.6}, {"date": "2026-10-20", "meta": 9.6}, {"date": "2026-10-21", "meta": 9.6}, {"date": "2026-10-22", "meta": 9.6}, {"date": "2026-10-23", "meta": 9.6}, {"date": "2026-10-24", "meta": null}, {"date": "2026-10-25", "meta": null}, {"date": "2026-10-26", "meta": 7.2}]
+};
+const DEFAULT_REAL = [];
+const DEFAULT_CONFIG = { warnThreshold: 98, critThreshold: 90 };
+
+/* Marcos de entrega acumulada (coluna de "Total Entrega" da aba PLANEJAMENTO,
+   somando os embarques do Pedido 3 + Pedido 4). Comparados com o acumulado
+   real lançado na Esteira de Seleção, que é a etapa final antes do embarque. */
+const MILESTONES = [
+  { date:"2026-08-03", target:60.06 },
+  { date:"2026-08-10", target:120.12 },
+  { date:"2026-08-19", target:180.18 },
+  { date:"2026-08-25", target:220.22 },
+  { date:"2026-09-03", target:280.28 },
+  { date:"2026-09-09", target:320.32 },
+  { date:"2026-09-21", target:400.40 },
+  { date:"2026-10-05", target:480.48 },
+  { date:"2026-10-14", target:560.56 },
+  { date:"2026-10-26", target:620.62 }
+];
+
+const WEEKDAY_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MONTH_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+
+/* =========================================================================
+   CAMADA DE DADOS — Supabase (compartilhado de verdade entre a TV e
+   qualquer aparelho de apontamento, em tempo real via Realtime).
+   ========================================================================= */
+const SUPABASE_URL = 'https://lyjerzitfsdkywatrkpx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5amVyeml0ZnNka3l3YXRya3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzA4ODcsImV4cCI6MjA5ODUwNjg4N30.FBwwCKi3hfkckr2t0ujJnpw5O6nzaLG46q8p0iQEPpY';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function defaultScheduleFor(pid){ return DEFAULT_SCHEDULES[pid] ? [...DEFAULT_SCHEDULES[pid]] : []; }
+
+/* A existência de uma linha em process_config marca que o processo já foi
+   inicializado. Assim, um wipeAll (que apaga o cronograma de propósito)
+   nunca é "desfeito" sozinho num carregamento seguinte. */
+async function ensureProcessInitialized(pid){
+  try{
+    const { data, error } = await supabase.from('process_config').select('process_id').eq('process_id', pid).maybeSingle();
+    if(error) throw error;
+    if(data) return;
+    const seed = defaultScheduleFor(pid);
+    if(seed.length){
+      await supabase.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
+    }
+    await supabase.from('process_config').insert({ process_id: pid, warn_threshold: DEFAULT_CONFIG.warnThreshold, crit_threshold: DEFAULT_CONFIG.critThreshold });
+  }catch(e){ console.error('Falha ao inicializar processo', pid, e); }
+}
+
+const db = {
+  async getSchedule(pid){
+    await ensureProcessInitialized(pid);
+    try{
+      const { data, error } = await supabase.from('schedule_days').select('date, meta').eq('process_id', pid).order('date');
+      if(error) throw error;
+      return (data||[]).map(r=> ({ date: r.date, meta: r.meta===null||r.meta===undefined ? null : Number(r.meta) }));
+    }catch(e){ console.error('getSchedule', pid, e); return []; }
+  },
+  async saveSchedule(pid, arr){
+    arr.sort((a,b)=> a.date.localeCompare(b.date));
+    try{
+      await supabase.from('schedule_days').delete().eq('process_id', pid);
+      if(arr.length){
+        const rows = arr.map(d=>({ process_id: pid, date: d.date, meta: d.meta }));
+        const { error } = await supabase.from('schedule_days').insert(rows);
+        if(error) throw error;
+      }
+    }catch(e){ console.error('saveSchedule', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async getReal(pid){
+    try{
+      const { data, error } = await supabase.from('real_production').select('date, real').eq('process_id', pid);
+      if(error) throw error;
+      const map = {}; (data||[]).forEach(r=> map[r.date] = Number(r.real));
+      return map;
+    }catch(e){ console.error('getReal', pid, e); return {}; }
+  },
+  async setReal(pid, date, value){
+    try{
+      if(value === null || value === '' || value === undefined){
+        await supabase.from('real_production').delete().eq('process_id', pid).eq('date', date);
+      } else {
+        const { error } = await supabase.from('real_production').upsert(
+          { process_id: pid, date, real: Number(value) }, { onConflict: 'process_id,date' }
+        );
+        if(error) throw error;
+      }
+    }catch(e){ console.error('setReal', pid, date, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async clearReal(pid){
+    try{ await supabase.from('real_production').delete().eq('process_id', pid); }
+    catch(e){ console.error('clearReal', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async getConfig(pid){
+    await ensureProcessInitialized(pid);
+    try{
+      const { data, error } = await supabase.from('process_config').select('warn_threshold, crit_threshold').eq('process_id', pid).maybeSingle();
+      if(error) throw error;
+      if(!data) return {...DEFAULT_CONFIG};
+      return { warnThreshold: Number(data.warn_threshold), critThreshold: Number(data.crit_threshold) };
+    }catch(e){ console.error('getConfig', pid, e); return {...DEFAULT_CONFIG}; }
+  },
+  async saveConfig(pid, cfg){
+    try{
+      const { error } = await supabase.from('process_config').upsert(
+        { process_id: pid, warn_threshold: cfg.warnThreshold, crit_threshold: cfg.critThreshold }, { onConflict: 'process_id' }
+      );
+      if(error) throw error;
+    }catch(e){ console.error('saveConfig', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async resetProcess(pid){
+    try{
+      await supabase.from('schedule_days').delete().eq('process_id', pid);
+      const seed = defaultScheduleFor(pid);
+      if(seed.length){
+        await supabase.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
+      }
+      await supabase.from('real_production').delete().eq('process_id', pid);
+      await supabase.from('process_config').upsert(
+        { process_id: pid, warn_threshold: DEFAULT_CONFIG.warnThreshold, crit_threshold: DEFAULT_CONFIG.critThreshold }, { onConflict: 'process_id' }
+      );
+    }catch(e){ console.error('resetProcess', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async wipeAll(pid){
+    try{
+      await supabase.from('schedule_days').delete().eq('process_id', pid);
+      await supabase.from('real_production').delete().eq('process_id', pid);
+    }catch(e){ console.error('wipeAll', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  /* Marcos de entrega são globais ao projeto (não pertencem a um processo) */
+  async getMilestonesReal(){
+    try{
+      const { data, error } = await supabase.from('milestones_real').select('milestone_date, real');
+      if(error) throw error;
+      const map = {}; (data||[]).forEach(r=> map[r.milestone_date] = Number(r.real));
+      return map;
+    }catch(e){ console.error('getMilestonesReal', e); return {}; }
+  },
+  async setMilestoneReal(date, value){
+    try{
+      if(value === null || value === '' || value === undefined){
+        await supabase.from('milestones_real').delete().eq('milestone_date', date);
+      } else {
+        const { error } = await supabase.from('milestones_real').upsert(
+          { milestone_date: date, real: Number(value) }, { onConflict: 'milestone_date' }
+        );
+        if(error) throw error;
+      }
+    }catch(e){ console.error('setMilestoneReal', date, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  }
+};
+
+/* Realtime — qualquer INSERT/UPDATE/DELETE nessas 4 tabelas (feito por
+   qualquer aparelho) dispara o mesmo evento usado para atualizar a tela. */
+supabase
+  .channel('latao-realtime')
+  .on('postgres_changes', { event:'*', schema:'public', table:'schedule_days' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+  .on('postgres_changes', { event:'*', schema:'public', table:'real_production' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+  .on('postgres_changes', { event:'*', schema:'public', table:'process_config' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+  .on('postgres_changes', { event:'*', schema:'public', table:'milestones_real' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+  .subscribe();
+
+/* =========================================================================
+   MARCOS — cálculo de situação compartilhado (Painel / aba Marcos / TV)
+   ========================================================================= */
+function todayIsoStr(){
+  const n = new Date();
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+function milestoneStatus(m, realMap){
+  const today = todayIsoStr();
+  const has = realMap[m.date] !== undefined && realMap[m.date] !== null;
+  const real = has ? realMap[m.date] : null;
+  const passed = m.date <= today;
+  if(has){
+    return { status: real >= m.target ? 'ok' : 'crit', real, label: real >= m.target ? 'cumprido' : 'atrasado' };
+  }
+  return { status: passed ? 'warn' : 'pending', real: null, label: passed ? 'sem lançamento' : 'a cumprir' };
+}
+
+/* =========================================================================
+   CÁLCULOS DERIVADOS
+   ========================================================================= */
+function statusFromPct(pct, cfg){
+  if(pct >= cfg.warnThreshold) return 'ok';
+  if(pct >= cfg.critThreshold) return 'warn';
+  return 'crit';
+}
+
+async function computeDerived(pid){
+  const schedule = (await db.getSchedule(pid)).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const real = await db.getReal(pid);
+  const cfg = await db.getConfig(pid);
+
+  let metaAcum = 0, realAcum = 0;
+  let cursorDate = null;
+  const rows = schedule.map(day=>{
+    const isOff = day.meta === null || day.meta === undefined;
+    if(!isOff) metaAcum += day.meta;
+    const r = real[day.date];
+    const hasReal = (r !== undefined && r !== null);
+    if(hasReal){ realAcum += r; cursorDate = day.date; }
+    return { ...day, isOff, metaAcumSnapshot: metaAcum, real: hasReal ? r : null, realAcumSnapshot: hasReal ? realAcum : null };
+  });
+
+  const totalMeta = schedule.reduce((s,d)=> s + (d.meta||0), 0);
+  const diff = realAcum - metaAcum;
+  const aderencia = metaAcum > 0 ? (realAcum/metaAcum*100) : 100;
+  const status = statusFromPct(aderencia, cfg);
+
+  const cursorIdx = cursorDate ? rows.findIndex(r=>r.date===cursorDate) : -1;
+  const remainingDays = rows.slice(cursorIdx+1).filter(r=>!r.isOff);
+  const remainingToClose = Math.max(totalMeta - realAcum, 0);
+  const neededPace = remainingDays.length > 0 ? remainingToClose / remainingDays.length : 0;
+
+  const currentMeta = cursorIdx >= 0 ? (rows.slice(0,cursorIdx+1).reverse().find(r=>!r.isOff)?.meta || 0) : (rows.find(r=>!r.isOff)?.meta || 0);
+  const diasEquivalentes = currentMeta > 0 ? Math.abs(diff)/currentMeta : 0;
+
+  return { rows, cfg, metaAcum, realAcum, diff, aderencia, status, totalMeta,
+           remainingDays: remainingDays.length, neededPace, currentMeta, diasEquivalentes,
+           cursorDate, cursorIdx };
+}
+
+/* =========================================================================
+   FORMATAÇÃO
+   ========================================================================= */
+const fmt1 = n => (Math.round(n*10)/10).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1});
+const fmtSigned = n => (n>0?'+':'') + fmt1(n);
+function fmtDateLong(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return `${d} de ${MONTH_PT[m-1]} de ${y}`;
+}
+function fmtDateShort(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+}
+function weekdayOf(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return WEEKDAY_PT[new Date(y,m-1,d).getDay()];
+}
+function processLabel(pid){ return (PROCESSES.find(p=>p.id===pid)||{}).label || pid; }
+
+/* =========================================================================
+   RELÓGIO
+   ========================================================================= */
+function tickClock(){
+  const now = new Date();
+  document.getElementById('navTime').textContent = now.toLocaleTimeString('pt-BR');
+  document.getElementById('navDate').textContent = now.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* =========================================================================
+   NAVEGAÇÃO ENTRE ABAS (Painel / Apontamento / Marcos / Cronograma / TV)
+   ========================================================================= */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    document.body.classList.toggle('tv-active', btn.dataset.view==='tv');
+    if(btn.dataset.view==='tv') startTvMode(); else stopTvMode();
+    renderActiveView();
+  });
+});
+
+/* =========================================================================
+   SELEÇÃO DE PROCESSO (Galvanoplastia / Forno / Esteira de Seleção)
+   ========================================================================= */
+document.querySelectorAll('.proc-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    currentProcess = btn.dataset.proc;
+    document.querySelectorAll('.proc-btn').forEach(b=>b.classList.toggle('active', b.dataset.proc===currentProcess));
+    renderActiveView();
+  });
+});
+
+function renderActiveView(){
+  const activeView = document.querySelector('.tab-btn.active').dataset.view;
+  if(activeView==='painel') renderPainel();
+  if(activeView==='apontamento') renderApontamento();
+  if(activeView==='marcos') renderMarcosTab();
+  if(activeView==='cronograma') renderCronograma();
+  if(activeView==='tv') renderTvAll();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+/* =========================================================================
+   VISÃO GERAL — mini-cards com os 3 processos (topo do Painel)
+   ========================================================================= */
+async function renderOverview(){
+  const wrap = document.getElementById('overviewRow');
+  wrap.innerHTML = '';
+  for(const proc of PROCESSES){
+    const d = await computeDerived(proc.id);
+    const labelMap = { ok:'No prazo', warn:'Atenção', crit:'Crítico' };
+    const card = document.createElement('div');
+    card.className = 'mini-card' + (proc.id===currentProcess ? ' is-active' : '');
+    card.innerHTML = `
+      <div class="mini-dot ${d.status}"></div>
+      <div class="mini-body">
+        <div class="mini-name">${proc.label}</div>
+        <div class="mini-sub">${d.rows.length ? labelMap[d.status] : 'sem cronograma cadastrado'}</div>
+      </div>
+      <div class="mini-pct ${d.status}">${d.rows.length ? fmt1(d.aderencia)+'%' : '—'}</div>
+    `;
+    card.addEventListener('click', ()=>{
+      currentProcess = proc.id;
+      document.querySelectorAll('.proc-btn').forEach(b=>b.classList.toggle('active', b.dataset.proc===currentProcess));
+      renderActiveView();
+    });
+    wrap.appendChild(card);
+  }
+}
+
+/* =========================================================================
+   GAUGE (ponteiro tipo manômetro)
+   ========================================================================= */
+function arcPoint(cx, cy, r, angleDeg){
+  const rad = angleDeg * Math.PI/180;
+  return { x: cx + r*Math.cos(rad), y: cy - r*Math.sin(rad) };
+}
+function describeArc(cx, cy, r, startAngle, endAngle){
+  const s = arcPoint(cx,cy,r,startAngle), e = arcPoint(cx,cy,r,endAngle);
+  const largeArc = Math.abs(startAngle-endAngle) > 180 ? 1 : 0;
+  return `M${s.x},${s.y} A${r},${r} 0 ${largeArc} ${startAngle>endAngle?1:0} ${e.x},${e.y}`;
+}
+function renderGauge(pctRaw, cfg){
+  const pct = Math.max(0, Math.min(pctRaw, 130));
+  const pctForNeedle = Math.min(pct,115);
+  const cx=150, cy=150, r=120;
+  const scaleMax = 115;
+  const critEnd = cfg.critThreshold/scaleMax*180;
+  const warnEnd = cfg.warnThreshold/scaleMax*180;
+  document.getElementById('gaugeZoneCrit').setAttribute('d', describeArc(cx,cy,r+16,180,180-critEnd));
+  document.getElementById('gaugeZoneWarn').setAttribute('d', describeArc(cx,cy,r+16,180-critEnd,180-warnEnd));
+  document.getElementById('gaugeZoneOk').setAttribute('d', describeArc(cx,cy,r+16,180-warnEnd,0));
+
+  const fillAngleSpan = (pctForNeedle/scaleMax)*180;
+  const fillPath = document.getElementById('gaugeFill');
+  const trackLen = Math.PI*r;
+  fillPath.setAttribute('stroke-dasharray', trackLen);
+  fillPath.setAttribute('stroke-dashoffset', trackLen*(1-fillAngleSpan/180));
+  const statusColor = { ok:'#1F9D55', warn:'#C98A00', crit:'#C7414F' }[statusFromPct(pct, cfg)];
+  fillPath.setAttribute('stroke', statusColor);
+
+  const needleAngle = 180 - (pctForNeedle/scaleMax)*180;
+  const tip = arcPoint(cx,cy,108,needleAngle);
+  document.getElementById('gaugeNeedle').setAttribute('x2', tip.x);
+  document.getElementById('gaugeNeedle').setAttribute('y2', tip.y);
+
+  document.getElementById('gaugePct').textContent = fmt1(pctRaw)+'%';
+  document.getElementById('gaugePct').style.color = statusColor;
+}
+
+/* =========================================================================
+   CHARTS
+   ========================================================================= */
+let chartAcum, chartDaily, chartWeekly;
+function destroyCharts(){ [chartAcum, chartDaily, chartWeekly].forEach(c=> c && c.destroy()); }
+
+function buildAcumChart(rows){
+  const ctx = document.getElementById('chartAcum');
+  chartAcum = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: rows.map(r=>fmtDateShort(r.date)),
+      datasets:[
+        { label:'Meta acumulada', data: rows.map(r=>r.metaAcumSnapshot), borderColor:'#B08D57', borderDash:[5,3], borderWidth:2, pointRadius:0, tension:0.15 },
+        { label:'Real acumulado', data: rows.map(r=>r.realAcumSnapshot), borderColor:'#1B1F27', backgroundColor:'rgba(27,31,39,0.06)', fill:true, borderWidth:2.5, pointRadius:0, tension:0.15, spanGaps:false }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{family:'Inter', size:11}}} },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:12, font:{family:'IBM Plex Mono', size:10}}, grid:{display:false} },
+        y:{ ticks:{ font:{family:'IBM Plex Mono', size:10}}, grid:{color:'#EFEDE6'} }
+      }
+    }
+  });
+}
+
+function buildDailyChart(rows){
+  const withData = rows.filter(r=>!r.isOff).slice(-14);
+  document.getElementById('dailyChartRange').textContent = withData.length ? `${fmtDateShort(withData[0].date)} – ${fmtDateShort(withData[withData.length-1].date)}` : '—';
+  const ctx = document.getElementById('chartDaily');
+  chartDaily = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: withData.map(r=>fmtDateShort(r.date)),
+      datasets:[
+        { label:'Meta', data: withData.map(r=>r.meta), backgroundColor:'#EDE1CB', borderRadius:4, barPercentage:0.55 },
+        { label:'Real', data: withData.map(r=>r.real), backgroundColor: withData.map(r=>{
+            if(r.real===null) return 'rgba(0,0,0,0)';
+            const p = r.meta ? r.real/r.meta*100 : 100;
+            return p>=98?'#1F9D55':p>=90?'#C98A00':'#C7414F';
+          }), borderRadius:4, barPercentage:0.55 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{family:'Inter', size:11}}} },
+      scales:{
+        x:{ ticks:{font:{family:'IBM Plex Mono', size:9}}, grid:{display:false} },
+        y:{ ticks:{font:{family:'IBM Plex Mono', size:10}}, grid:{color:'#EFEDE6'} }
+      }
+    }
+  });
+}
+
+function buildWeeklyChart(rows){
+  const weeks = [];
+  let cur = [];
+  rows.forEach((r,i)=>{
+    cur.push(r);
+    if(cur.length===7 || i===rows.length-1){ weeks.push(cur); cur=[]; }
+  });
+  const labels = weeks.map((w,i)=> 'S'+(i+1));
+  const values = weeks.map(w=>{
+    const m = w.reduce((s,d)=> s+(d.isOff?0:d.meta),0);
+    const r = w.reduce((s,d)=> s + (d.real||0), 0);
+    return m>0 ? Math.round(r/m*1000)/10 : null;
+  });
+  const ctx = document.getElementById('chartWeekly');
+  chartWeekly = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values, backgroundColor: values.map(v=> v===null?'#EFEDE6': v>=98?'#1F9D55':v>=90?'#C98A00':'#C7414F'), borderRadius:5, barPercentage:0.6 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ ticks:{font:{family:'IBM Plex Mono', size:10}}, grid:{display:false} },
+               y:{ ticks:{callback:v=>v+'%', font:{family:'IBM Plex Mono', size:10}}, grid:{color:'#EFEDE6'} } }
+    }
+  });
+}
+
+/* =========================================================================
+   MARCOS DE ENTREGA DO PROJETO (comparados ao acumulado real da Esteira)
+   ========================================================================= */
+async function renderMilestones(){
+  const real = await db.getMilestonesReal();
+  const tbody = document.getElementById('milestonesBody');
+  tbody.innerHTML = '';
+  MILESTONES.forEach(m=>{
+    const st = milestoneStatus(m, real);
+    const badge = `<span class="badge ${st.status}">${st.label}</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${fmtDateShort(m.date)}/${m.date.slice(0,4)}</td>
+      <td class="mono">${fmt1(m.target)}</td>
+      <td class="mono">${st.real!==null ? fmt1(st.real) : '—'}</td>
+      <td>${badge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* =========================================================================
+   RENDER — ABA MARCOS (apontamento dedicado dos marcos de entrega)
+   ========================================================================= */
+async function renderMarcosTab(){
+  const real = await db.getMilestonesReal();
+  const tbody = document.getElementById('marcosBody');
+  tbody.innerHTML = '';
+  MILESTONES.forEach(m=>{
+    const st = milestoneStatus(m, real);
+    const badge = `<span class="badge ${st.status}">${st.label}</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${m.date.split('-').reverse().join('/')}</td>
+      <td class="mono">${fmt1(m.target)}</td>
+      <td><input type="number" step="0.01" min="0" data-date="${m.date}" class="marco-input" value="${st.real!==null?st.real:''}" placeholder="0,00"></td>
+      <td>${badge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.marco-input').forEach(inp=>{
+    inp.addEventListener('change', async e=>{
+      await db.setMilestoneReal(e.target.dataset.date, e.target.value);
+      showToast('Marco de entrega salvo');
+      renderMarcosTab();
+    });
+  });
+}
+
+/* =========================================================================
+   RENDER — PAINEL
+   ========================================================================= */
+async function renderPainel(){
+  await renderOverview();
+  await renderMilestones();
+  const d = await computeDerived(currentProcess);
+  const dot = document.getElementById('andonDot');
+  dot.className = 'andon-dot ' + d.status;
+  const labelMap = { ok:'No prazo', warn:'Atenção', crit:'Crítico' };
+  document.getElementById('andonLabel').textContent = `${processLabel(currentProcess)} · ${labelMap[d.status]}`;
+  document.getElementById('andonSub').textContent = d.cursorDate
+    ? `Última produção lançada: ${fmtDateLong(d.cursorDate)}`
+    : (d.rows.length ? 'Nenhum apontamento lançado ainda' : 'Nenhum cronograma cadastrado — configure em Cronograma');
+  document.getElementById('andonPeriod').textContent = d.rows.length
+    ? `Cronograma: ${fmtDateShort(d.rows[0].date)} a ${fmtDateShort(d.rows[d.rows.length-1].date)}`
+    : '—';
+
+  renderGauge(d.aderencia, d.cfg);
+
+  document.getElementById('statMetaAcum').textContent = fmt1(d.metaAcum)+' t';
+  document.getElementById('statRealAcum').textContent = fmt1(d.realAcum)+' t';
+  const diffEl = document.getElementById('statDiff');
+  diffEl.textContent = fmtSigned(d.diff)+' t';
+  diffEl.className = 'value mono ' + (d.diff>=0?'ok':(d.status==='crit'?'crit':'warn'));
+
+  document.getElementById('ritmoValor').textContent = fmt1(d.neededPace);
+  document.getElementById('ritmoDiasRestantes').textContent = d.remainingDays;
+  document.getElementById('ritmoMetaAtual').textContent = fmt1(d.currentMeta)+' t/dia';
+  document.getElementById('ritmoDiasEquiv').textContent = (d.diff<0?'-':'+') + fmt1(d.diasEquivalentes) + ' dias';
+
+  destroyCharts();
+  buildAcumChart(d.rows);
+  buildDailyChart(d.rows);
+  buildWeeklyChart(d.rows);
+}
+
+/* =========================================================================
+   RENDER — APONTAMENTO
+   ========================================================================= */
+async function renderApontamento(){
+  const d = await computeDerived(currentProcess);
+  const tbody = document.getElementById('apontamentoBody');
+  tbody.innerHTML = '';
+  if(!d.rows.length){
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint); font-style:italic; padding:22px 16px;">
+      Nenhum dia cadastrado para ${processLabel(currentProcess)} ainda. Vá em <b>Cronograma</b> e adicione os dias e a meta diária deste processo.</td></tr>`;
+    return;
+  }
+  let lastMonth = null;
+  d.rows.forEach(r=>{
+    const [y,m] = r.date.split('-');
+    const monthKey = y+'-'+m;
+    if(monthKey !== lastMonth){
+      lastMonth = monthKey;
+      const tr = document.createElement('tr');
+      tr.className='month-sep';
+      tr.innerHTML = `<td colspan="5">${MONTH_PT[parseInt(m,10)-1]} de ${y}</td>`;
+      tbody.appendChild(tr);
+    }
+    const tr = document.createElement('tr');
+    if(r.date === d.cursorDate) tr.classList.add('is-cursor');
+    if(r.isOff) tr.classList.add('is-off');
+    let statusBadge = '<span class="badge pending">pendente</span>';
+    if(r.isOff) statusBadge = '<span class="badge pending">folga</span>';
+    else if(r.real!==null){
+      const p = r.meta ? r.real/r.meta*100 : 100;
+      const st = statusFromPct(p, d.cfg);
+      statusBadge = `<span class="badge ${st}">${st==='ok'?'no prazo':st==='warn'?'atenção':'crítico'}</span>`;
+    }
+    tr.innerHTML = `
+      <td class="mono">${r.date.split('-').reverse().join('/')}</td>
+      <td>${weekdayOf(r.date)}</td>
+      <td class="mono">${r.isOff ? '—' : fmt1(r.meta)}</td>
+      <td>${r.isOff ? '—' : `<input type="number" step="0.01" min="0" data-date="${r.date}" class="real-input" value="${r.real!==null?r.real:''}" placeholder="0,0">`}</td>
+      <td>${statusBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.real-input').forEach(inp=>{
+    inp.addEventListener('change', async e=>{
+      await db.setReal(currentProcess, e.target.dataset.date, e.target.value);
+      showToast('Apontamento salvo — ' + processLabel(currentProcess));
+      renderApontamento();
+    });
+  });
+}
+
+document.getElementById('btnJumpPending').addEventListener('click', async ()=>{
+  const d = await computeDerived(currentProcess);
+  const nextPending = d.rows.find(r=> !r.isOff && r.real===null);
+  if(!nextPending){ showToast('Todos os dias já foram lançados'); return; }
+  const row = [...document.querySelectorAll('#apontamentoBody tr')].find(tr=>{
+    const inp = tr.querySelector('.real-input');
+    return inp && inp.dataset.date === nextPending.date;
+  });
+  if(row){ row.scrollIntoView({behavior:'smooth', block:'center'}); row.querySelector('.real-input').focus(); }
+});
+document.getElementById('btnClearReal').addEventListener('click', async ()=>{
+  if(!confirm(`Apagar todos os apontamentos de produção real de ${processLabel(currentProcess)}? O cronograma de metas é mantido.`)) return;
+  await db.clearReal(currentProcess); renderApontamento(); showToast('Apontamentos apagados');
+});
+
+/* =========================================================================
+   RENDER — CRONOGRAMA (admin)
+   ========================================================================= */
+async function renderCronograma(){
+  document.getElementById('cronoProcTitle').textContent = processLabel(currentProcess);
+  const cfg = await db.getConfig(currentProcess);
+  document.getElementById('cfgWarnThreshold').value = cfg.warnThreshold;
+  document.getElementById('cfgCritThreshold').value = cfg.critThreshold;
+
+  const schedule = (await db.getSchedule(currentProcess)).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const tbody = document.getElementById('cronogramaBody');
+  tbody.innerHTML = '';
+  if(!schedule.length){
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint); font-style:italic; padding:22px 16px;">Nenhum dia cadastrado ainda para ${processLabel(currentProcess)}. Use "Adicionar dias ao cronograma" acima.</td></tr>`;
+    return;
+  }
+  schedule.forEach(day=>{
+    const isOff = day.meta === null || day.meta === undefined;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${day.date.split('-').reverse().join('/')}</td>
+      <td>${weekdayOf(day.date)}</td>
+      <td><button class="btn small toggle-type" data-date="${day.date}">${isOff?'Folga':'Dia útil'}</button></td>
+      <td>${isOff ? '—' : `<input type="number" step="0.1" min="0" class="meta-input" data-date="${day.date}" value="${day.meta}">`}</td>
+      <td><button class="btn small danger del-day" data-date="${day.date}">Excluir</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.meta-input').forEach(inp=>{
+    inp.addEventListener('change', async e=>{
+      const sched = await db.getSchedule(currentProcess);
+      const day = sched.find(d=>d.date===e.target.dataset.date);
+      if(day){ day.meta = Number(e.target.value); await db.saveSchedule(currentProcess, sched); showToast('Meta atualizada'); renderCronograma(); }
+    });
+  });
+  tbody.querySelectorAll('.toggle-type').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      const sched = await db.getSchedule(currentProcess);
+      const day = sched.find(d=>d.date===e.target.dataset.date);
+      if(day){ day.meta = (day.meta===null||day.meta===undefined) ? 1 : null; await db.saveSchedule(currentProcess, sched); renderCronograma(); }
+    });
+  });
+  tbody.querySelectorAll('.del-day').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      let sched = await db.getSchedule(currentProcess);
+      sched = sched.filter(d=>d.date!==e.target.dataset.date);
+      await db.saveSchedule(currentProcess, sched);
+      await db.setReal(currentProcess, e.target.dataset.date, null);
+      renderCronograma(); showToast('Dia removido');
+    });
+  });
+}
+
+document.getElementById('btnSaveConfig').addEventListener('click', async ()=>{
+  const cfg = {
+    warnThreshold: Number(document.getElementById('cfgWarnThreshold').value),
+    critThreshold: Number(document.getElementById('cfgCritThreshold').value)
+  };
+  await db.saveConfig(currentProcess, cfg); showToast('Limites do Andon salvos — ' + processLabel(currentProcess));
+});
+
+document.getElementById('btnAddDays').addEventListener('click', async ()=>{
+  const start = document.getElementById('addStartDate').value;
+  const qty = parseInt(document.getElementById('addQty').value,10);
+  const meta = Number(document.getElementById('addMeta').value);
+  const includeSunday = document.getElementById('addIncludeSunday').value==='on';
+  const includeSaturday = document.getElementById('addIncludeSaturday').value==='on';
+  if(!start || !qty){ showToast('Informe data inicial e quantidade'); return; }
+  const sched = await db.getSchedule(currentProcess);
+  const existing = new Set(sched.map(d=>d.date));
+  let [y,m,dd] = start.split('-').map(Number);
+  let cur = new Date(y, m-1, dd);
+  let added = 0;
+  while(added < qty){
+    const iso = cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0');
+    if(!existing.has(iso)){
+      const dow = cur.getDay(); // 0=Dom, 6=Sáb
+      const isOff = (dow===0 && !includeSunday) || (dow===6 && !includeSaturday);
+      sched.push({ date: iso, meta: isOff ? null : meta });
+      existing.add(iso);
+    }
+    cur.setDate(cur.getDate()+1);
+    added++;
+  }
+  await db.saveSchedule(currentProcess, sched);
+  renderCronograma(); showToast(`${qty} dia(s) adicionados a ${processLabel(currentProcess)}`);
+});
+
+document.getElementById('btnResetDemo').addEventListener('click', async ()=>{
+  if(!confirm(`Restaurar o cronograma projetado (metas calculadas a partir da planilha) para ${processLabel(currentProcess)}? Isso substitui o cronograma atual e apaga o apontamento real lançado.`)) return;
+  await db.resetProcess(currentProcess); renderCronograma(); showToast('Cronograma projetado restaurado');
+});
+document.getElementById('btnWipe').addEventListener('click', async ()=>{
+  if(!confirm(`Apagar TODO o cronograma e apontamentos de ${processLabel(currentProcess)}? Esta ação não pode ser desfeita.`)) return;
+  await db.wipeAll(currentProcess); renderCronograma(); showToast('Todos os dados foram apagados');
+});
+document.getElementById('btnExport').addEventListener('click', async ()=>{
+  const payload = {
+    processo: currentProcess,
+    schedule: await db.getSchedule(currentProcess),
+    real: await db.getReal(currentProcess),
+    config: await db.getConfig(currentProcess)
+  };
+  const box = document.getElementById('exportBox');
+  const area = document.getElementById('exportArea');
+  area.value = JSON.stringify(payload, null, 2);
+  box.style.display = 'block';
+  area.select();
+});
+
+/* =========================================================================
+   ATUALIZAÇÃO AUTOMÁTICA (Painel / Marcos)
+   O evento 'latao:data-changed' agora também é disparado pelo Realtime do
+   Supabase — ou seja, dispara quando QUALQUER aparelho (TV, celular, outro
+   PC) salva um apontamento, cronograma, config ou marco. A TV atualiza na
+   hora, sem precisar de F5. O setInterval fica como rede de segurança caso
+   a conexão Realtime caia.
+   ========================================================================= */
+window.addEventListener('latao:data-changed', ()=>{
+  const activeView = document.querySelector('.tab-btn.active').dataset.view;
+  if(activeView==='painel') renderPainel();
+  if(activeView==='marcos') renderMarcosTab();
+});
+setInterval(()=>{
+  const activeView = document.querySelector('.tab-btn.active').dataset.view;
+  if(activeView==='painel') renderPainel();
+}, 15000);
+
+/* =========================================================================
+   MODO TV — kiosk rotativo (Galvanoplastia → Forno → Esteira → Marcos → loop)
+   Pensado para TV de 70" vista a 5–10m: tipografia grande, uma tela por vez.
+   ========================================================================= */
+const TV_SCREENS = ['galvanoplastia','forno','esteira','marcos'];
+let tvIdx = 0;
+let tvTimer = null;
+
+function startTvMode(){
+  tvIdx = 0;
+  renderTvAll().then(()=> showTvScreen(tvIdx));
+  clearInterval(tvTimer);
+  tvTimer = setInterval(tvTick, 10000);
+}
+function stopTvMode(){
+  clearInterval(tvTimer);
+  tvTimer = null;
+}
+async function tvTick(){
+  await renderTvAll();
+  tvIdx = (tvIdx+1) % TV_SCREENS.length;
+  showTvScreen(tvIdx);
+}
+function showTvScreen(idx){
+  document.querySelectorAll('.tv-screen').forEach((el,i)=> el.classList.toggle('show', i===idx));
+  document.querySelectorAll('#tvDots span').forEach((d,i)=> d.classList.toggle('on', i===idx));
+}
+
+const TV_LABEL_MAP = { ok:'No prazo', warn:'Atenção', crit:'Crítico' };
+const TV_COLOR_MAP = { ok:'#1F9D55', warn:'#C98A00', crit:'#C7414F' };
+
+async function buildTvProcessHTML(pid){
+  const d = await computeDerived(pid);
+  const color = TV_COLOR_MAP[d.status];
+
+  /* Status do "andon" (pulsar do canto superior) NESTA TELA é baseado no
+     ritmo diário necessário comparado à meta diária atual — não na aderência
+     acumulada (que segue sendo usada no anel/gráfico abaixo):
+       ritmo <= meta atual            -> Estabilizado (verde)
+       ritmo até 25% acima da meta    -> Alerta (âmbar)
+       ritmo mais de 25% acima da meta-> Crítico (vermelho) */
+  const ratio = d.currentMeta > 0 ? (d.neededPace / d.currentMeta) : (d.neededPace > 0 ? Infinity : 0);
+  const paceStatus = ratio <= 1 ? 'ok' : (ratio <= 1.25 ? 'warn' : 'crit');
+  const paceColor = TV_COLOR_MAP[paceStatus];
+  const paceLabel = { ok:'Estabilizado', warn:'Alerta', crit:'Crítico' }[paceStatus];
+
+  const pctDisplay = Math.max(0, Math.min(d.aderencia, 999));
+  const ringPct = Math.max(0, Math.min(d.aderencia, 100));
+  return `
+    <div class="tv-header">
+      <div class="tv-proc-name">${processLabel(pid)}</div>
+      <div class="tv-andon">
+        <div class="tv-andon-dot ${paceStatus}"></div>
+        <div class="tv-andon-label" style="color:${paceColor}">${paceLabel}</div>
+      </div>
+    </div>
+    <div class="tv-kpi-row">
+      <div class="tv-kpi"><div class="tv-kpi-label">Meta acumulada</div><div class="tv-kpi-value">${fmt1(d.metaAcum)} t</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Real acumulado</div><div class="tv-kpi-value">${fmt1(d.realAcum)} t</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Diferença</div><div class="tv-kpi-value ${d.diff>=0?'ok':(d.status==='crit'?'crit':'warn')}">${fmtSigned(d.diff)} t</div></div>
+    </div>
+    <div class="tv-gauge-row">
+      <div class="tv-gauge-big">
+        <div class="tv-gauge-ring" style="background:conic-gradient(${color} 0% ${ringPct}%, var(--hairline) ${ringPct}% 100%);"></div>
+        <div class="tv-gauge-hole"></div>
+        <div class="tv-gauge-pct" style="color:${color};">${fmt1(pctDisplay)}%</div>
+      </div>
+      <div class="tv-ritmo">
+        <div class="tv-ritmo-label">Ritmo necessário para fechar no prazo</div>
+        <div class="tv-ritmo-value">${fmt1(d.neededPace)} t/dia</div>
+        <div class="tv-ritmo-sub">Faltam <b>${d.remainingDays}</b> dias úteis · meta atual: <b>${fmt1(d.currentMeta)} t/dia</b></div>
+      </div>
+    </div>
+    <div class="tv-footer">
+      <span>${d.cursorDate ? 'Última produção lançada: '+fmtDateLong(d.cursorDate) : 'Nenhum apontamento lançado ainda'}</span>
+      <span>${d.rows.length ? 'Cronograma: '+fmtDateShort(d.rows[0].date)+' a '+fmtDateShort(d.rows[d.rows.length-1].date) : ''}</span>
+    </div>
+  `;
+}
+
+async function buildTvMarcosHTML(){
+  const real = await db.getMilestonesReal();
+  const values = Object.values(real).filter(v=> typeof v === 'number');
+  const confirmed = values.length ? Math.max(...values) : 0;
+  const pct = Math.min(confirmed / PROJETO_TOTAL_TON * 100, 100);
+  const next = MILESTONES.find(m=> milestoneStatus(m, real).status !== 'ok');
+
+  const timeline = MILESTONES.map(m=>{
+    const st = milestoneStatus(m, real);
+    return `
+      <div class="tv-marcos-point">
+        <div class="tv-marcos-dot ${st.status==='ok'?'ok':(st.status==='crit'?'crit':'pending')}"></div>
+        <div class="tv-marcos-date">${fmtDateShort(m.date)}</div>
+        <div class="tv-marcos-target">${fmt1(m.target)}t</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="tv-marcos-title">Marcos de Entrega do Projeto</div>
+    <div class="tv-marcos-sub">Acumulado confirmado × meta final de ${fmt1(PROJETO_TOTAL_TON)} t (Pedido 3 + Pedido 4)</div>
+    <div class="tv-marcos-bigpct">${fmt1(pct)}%</div>
+    <div class="tv-marcos-bigsub">${fmt1(confirmed)} t confirmadas de ${fmt1(PROJETO_TOTAL_TON)} t</div>
+    <div class="tv-marcos-track"><div class="tv-marcos-fill" style="width:${pct}%"></div></div>
+    <div class="tv-marcos-timeline">${timeline}</div>
+    <div class="tv-footer">
+      <span>${next ? 'Próximo marco: '+fmtDateLong(next.date)+' · meta '+fmt1(next.target)+' t' : 'Todos os marcos confirmados'}</span>
+      <span>Base: aba Planejamento (coluna Total Entrega)</span>
+    </div>
+  `;
+}
+
+async function renderTvAll(){
+  for(const pid of ['galvanoplastia','forno','esteira']){
+    document.getElementById('tvScreen-'+pid).innerHTML = await buildTvProcessHTML(pid);
+  }
+  document.getElementById('tvScreen-marcos').innerHTML = await buildTvMarcosHTML();
+}
+
+/* =========================================================================
+   INICIALIZAÇÃO
+   ========================================================================= */
+(async function init(){
+  renderPainel();
+})();
+</script>
+</body>
+</html>
