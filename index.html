@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#F1F2F5;
@@ -598,9 +598,35 @@ const MONTH_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho',
    CAMADA DE DADOS — Supabase (compartilhado de verdade entre a TV e
    qualquer aparelho de apontamento, em tempo real via Realtime).
    ========================================================================= */
-const SUPABASE_URL = 'https://lyjerzitfsdkywatrkpx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5amVyeml0ZnNka3l3YXRya3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzA4ODcsImV4cCI6MjA5ODUwNjg4N30.FBwwCKi3hfkckr2t0ujJnpw5O6nzaLG46q8p0iQEPpY';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL = 'https://lwzwjgtkandpxumnjmeq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3endqZ3RrYW5kcHh1bW5qbWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODkzNTcsImV4cCI6MjA5OTY2NTM1N30.-T1tX6eYijQJzSvbg85IsSffqSgyTjdVm1yrt0yxRRI';
+
+/* Se o SDK do Supabase não carregar (CDN bloqueado, sem internet, etc.), o
+   resto da página não pode travar por causa disso — daí o try/catch aqui e
+   o "supabase &&" nas funções abaixo. Um banner visível avisa o problema. */
+let supabase = null;
+try{
+  if(window.supabase && typeof window.supabase.createClient === 'function'){
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    console.error('SDK do Supabase não carregou (window.supabase indefinido).');
+  }
+}catch(e){
+  console.error('Falha ao criar o client do Supabase', e);
+}
+function showConnError(msg){
+  let el = document.getElementById('connErrorBanner');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'connErrorBanner';
+    el.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:999; background:#C7414F; color:#fff; text-align:center; padding:10px 16px; font-family:Inter,sans-serif; font-size:13px; font-weight:600;';
+    document.body.prepend(el);
+  }
+  el.textContent = msg;
+}
+if(!supabase){
+  showConnError('Não foi possível conectar ao banco de dados (Supabase). Os dados não vão salvar nem atualizar. Verifique a internet e recarregue a página.');
+}
 
 function defaultScheduleFor(pid){ return DEFAULT_SCHEDULES[pid] ? [...DEFAULT_SCHEDULES[pid]] : []; }
 
@@ -608,6 +634,7 @@ function defaultScheduleFor(pid){ return DEFAULT_SCHEDULES[pid] ? [...DEFAULT_SC
    inicializado. Assim, um wipeAll (que apaga o cronograma de propósito)
    nunca é "desfeito" sozinho num carregamento seguinte. */
 async function ensureProcessInitialized(pid){
+  if(!supabase) return;
   try{
     const { data, error } = await supabase.from('process_config').select('process_id').eq('process_id', pid).maybeSingle();
     if(error) throw error;
@@ -732,13 +759,17 @@ const db = {
 
 /* Realtime — qualquer INSERT/UPDATE/DELETE nessas 4 tabelas (feito por
    qualquer aparelho) dispara o mesmo evento usado para atualizar a tela. */
-supabase
-  .channel('latao-realtime')
-  .on('postgres_changes', { event:'*', schema:'public', table:'schedule_days' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
-  .on('postgres_changes', { event:'*', schema:'public', table:'real_production' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
-  .on('postgres_changes', { event:'*', schema:'public', table:'process_config' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
-  .on('postgres_changes', { event:'*', schema:'public', table:'milestones_real' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
-  .subscribe();
+if(supabase){
+  try{
+    supabase
+      .channel('latao-realtime')
+      .on('postgres_changes', { event:'*', schema:'public', table:'schedule_days' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+      .on('postgres_changes', { event:'*', schema:'public', table:'real_production' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+      .on('postgres_changes', { event:'*', schema:'public', table:'process_config' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+      .on('postgres_changes', { event:'*', schema:'public', table:'milestones_real' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+      .subscribe();
+  }catch(e){ console.error('Falha ao iniciar Realtime', e); }
+}
 
 /* =========================================================================
    MARCOS — cálculo de situação compartilhado (Painel / aba Marcos / TV)
