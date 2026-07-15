@@ -603,11 +603,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 /* Se o SDK do Supabase não carregar (CDN bloqueado, sem internet, etc.), o
    resto da página não pode travar por causa disso — daí o try/catch aqui e
-   o "supabase &&" nas funções abaixo. Um banner visível avisa o problema. */
-let supabase = null;
+   o "sb &&" nas funções abaixo. Um banner visível avisa o problema. */
+let sb = null;
 try{
   if(window.supabase && typeof window.supabase.createClient === 'function'){
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } else {
     console.error('SDK do Supabase não carregou (window.supabase indefinido).');
   }
@@ -624,7 +624,7 @@ function showConnError(msg){
   }
   el.textContent = msg;
 }
-if(!supabase){
+if(!sb){
   showConnError('Não foi possível conectar ao banco de dados (Supabase). Os dados não vão salvar nem atualizar. Verifique a internet e recarregue a página.');
 }
 
@@ -634,16 +634,16 @@ function defaultScheduleFor(pid){ return DEFAULT_SCHEDULES[pid] ? [...DEFAULT_SC
    inicializado. Assim, um wipeAll (que apaga o cronograma de propósito)
    nunca é "desfeito" sozinho num carregamento seguinte. */
 async function ensureProcessInitialized(pid){
-  if(!supabase) return;
+  if(!sb) return;
   try{
-    const { data, error } = await supabase.from('process_config').select('process_id').eq('process_id', pid).maybeSingle();
+    const { data, error } = await sb.from('process_config').select('process_id').eq('process_id', pid).maybeSingle();
     if(error) throw error;
     if(data) return;
     const seed = defaultScheduleFor(pid);
     if(seed.length){
-      await supabase.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
+      await sb.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
     }
-    await supabase.from('process_config').insert({ process_id: pid, warn_threshold: DEFAULT_CONFIG.warnThreshold, crit_threshold: DEFAULT_CONFIG.critThreshold });
+    await sb.from('process_config').insert({ process_id: pid, warn_threshold: DEFAULT_CONFIG.warnThreshold, crit_threshold: DEFAULT_CONFIG.critThreshold });
   }catch(e){ console.error('Falha ao inicializar processo', pid, e); }
 }
 
@@ -651,7 +651,7 @@ const db = {
   async getSchedule(pid){
     await ensureProcessInitialized(pid);
     try{
-      const { data, error } = await supabase.from('schedule_days').select('date, meta').eq('process_id', pid).order('date');
+      const { data, error } = await sb.from('schedule_days').select('date, meta').eq('process_id', pid).order('date');
       if(error) throw error;
       return (data||[]).map(r=> ({ date: r.date, meta: r.meta===null||r.meta===undefined ? null : Number(r.meta) }));
     }catch(e){ console.error('getSchedule', pid, e); return []; }
@@ -659,10 +659,10 @@ const db = {
   async saveSchedule(pid, arr){
     arr.sort((a,b)=> a.date.localeCompare(b.date));
     try{
-      await supabase.from('schedule_days').delete().eq('process_id', pid);
+      await sb.from('schedule_days').delete().eq('process_id', pid);
       if(arr.length){
         const rows = arr.map(d=>({ process_id: pid, date: d.date, meta: d.meta }));
-        const { error } = await supabase.from('schedule_days').insert(rows);
+        const { error } = await sb.from('schedule_days').insert(rows);
         if(error) throw error;
       }
     }catch(e){ console.error('saveSchedule', pid, e); }
@@ -670,7 +670,7 @@ const db = {
   },
   async getReal(pid){
     try{
-      const { data, error } = await supabase.from('real_production').select('date, real').eq('process_id', pid);
+      const { data, error } = await sb.from('real_production').select('date, real').eq('process_id', pid);
       if(error) throw error;
       const map = {}; (data||[]).forEach(r=> map[r.date] = Number(r.real));
       return map;
@@ -679,9 +679,9 @@ const db = {
   async setReal(pid, date, value){
     try{
       if(value === null || value === '' || value === undefined){
-        await supabase.from('real_production').delete().eq('process_id', pid).eq('date', date);
+        await sb.from('real_production').delete().eq('process_id', pid).eq('date', date);
       } else {
-        const { error } = await supabase.from('real_production').upsert(
+        const { error } = await sb.from('real_production').upsert(
           { process_id: pid, date, real: Number(value) }, { onConflict: 'process_id,date' }
         );
         if(error) throw error;
@@ -690,14 +690,14 @@ const db = {
     window.dispatchEvent(new Event('latao:data-changed'));
   },
   async clearReal(pid){
-    try{ await supabase.from('real_production').delete().eq('process_id', pid); }
+    try{ await sb.from('real_production').delete().eq('process_id', pid); }
     catch(e){ console.error('clearReal', pid, e); }
     window.dispatchEvent(new Event('latao:data-changed'));
   },
   async getConfig(pid){
     await ensureProcessInitialized(pid);
     try{
-      const { data, error } = await supabase.from('process_config').select('warn_threshold, crit_threshold').eq('process_id', pid).maybeSingle();
+      const { data, error } = await sb.from('process_config').select('warn_threshold, crit_threshold').eq('process_id', pid).maybeSingle();
       if(error) throw error;
       if(!data) return {...DEFAULT_CONFIG};
       return { warnThreshold: Number(data.warn_threshold), critThreshold: Number(data.crit_threshold) };
@@ -705,7 +705,7 @@ const db = {
   },
   async saveConfig(pid, cfg){
     try{
-      const { error } = await supabase.from('process_config').upsert(
+      const { error } = await sb.from('process_config').upsert(
         { process_id: pid, warn_threshold: cfg.warnThreshold, crit_threshold: cfg.critThreshold }, { onConflict: 'process_id' }
       );
       if(error) throw error;
@@ -714,13 +714,13 @@ const db = {
   },
   async resetProcess(pid){
     try{
-      await supabase.from('schedule_days').delete().eq('process_id', pid);
+      await sb.from('schedule_days').delete().eq('process_id', pid);
       const seed = defaultScheduleFor(pid);
       if(seed.length){
-        await supabase.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
+        await sb.from('schedule_days').insert(seed.map(d=>({ process_id: pid, date: d.date, meta: d.meta })));
       }
-      await supabase.from('real_production').delete().eq('process_id', pid);
-      await supabase.from('process_config').upsert(
+      await sb.from('real_production').delete().eq('process_id', pid);
+      await sb.from('process_config').upsert(
         { process_id: pid, warn_threshold: DEFAULT_CONFIG.warnThreshold, crit_threshold: DEFAULT_CONFIG.critThreshold }, { onConflict: 'process_id' }
       );
     }catch(e){ console.error('resetProcess', pid, e); }
@@ -728,15 +728,15 @@ const db = {
   },
   async wipeAll(pid){
     try{
-      await supabase.from('schedule_days').delete().eq('process_id', pid);
-      await supabase.from('real_production').delete().eq('process_id', pid);
+      await sb.from('schedule_days').delete().eq('process_id', pid);
+      await sb.from('real_production').delete().eq('process_id', pid);
     }catch(e){ console.error('wipeAll', pid, e); }
     window.dispatchEvent(new Event('latao:data-changed'));
   },
   /* Marcos de entrega são globais ao projeto (não pertencem a um processo) */
   async getMilestonesReal(){
     try{
-      const { data, error } = await supabase.from('milestones_real').select('milestone_date, real');
+      const { data, error } = await sb.from('milestones_real').select('milestone_date, real');
       if(error) throw error;
       const map = {}; (data||[]).forEach(r=> map[r.milestone_date] = Number(r.real));
       return map;
@@ -745,9 +745,9 @@ const db = {
   async setMilestoneReal(date, value){
     try{
       if(value === null || value === '' || value === undefined){
-        await supabase.from('milestones_real').delete().eq('milestone_date', date);
+        await sb.from('milestones_real').delete().eq('milestone_date', date);
       } else {
-        const { error } = await supabase.from('milestones_real').upsert(
+        const { error } = await sb.from('milestones_real').upsert(
           { milestone_date: date, real: Number(value) }, { onConflict: 'milestone_date' }
         );
         if(error) throw error;
@@ -759,9 +759,9 @@ const db = {
 
 /* Realtime — qualquer INSERT/UPDATE/DELETE nessas 4 tabelas (feito por
    qualquer aparelho) dispara o mesmo evento usado para atualizar a tela. */
-if(supabase){
+if(sb){
   try{
-    supabase
+    sb
       .channel('latao-realtime')
       .on('postgres_changes', { event:'*', schema:'public', table:'schedule_days' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
       .on('postgres_changes', { event:'*', schema:'public', table:'real_production' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
