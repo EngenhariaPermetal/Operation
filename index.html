@@ -152,6 +152,54 @@
   .tv-marcos-dot.pending{background:var(--surface); border:3px solid var(--ink-faint);}
   .tv-marcos-date{font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--ink-soft); text-align:center;}
   .tv-marcos-target{font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--ink-faint);}
+
+  /* ---------- MODO TV em celular — mesmas telas, layout empilhado ---------- */
+  @media (max-width:760px){
+    body.tv-active .topnav{padding:10px 14px;}
+    body.tv-active .brand-text .title{font-size:14px;}
+    #view-tv{height:calc(100vh - 56px);}
+    .tv-screen{padding:26px 20px 76px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .tv-header{flex-wrap:wrap; gap:10px; margin-bottom:20px;}
+    .tv-proc-name{font-size:32px;}
+    .tv-andon{gap:10px;}
+    .tv-andon-dot{width:16px; height:16px;}
+    .tv-andon-dot::after{inset:-6px;}
+    .tv-andon-label{font-size:20px;}
+
+    .tv-kpi-row{grid-template-columns:1fr; gap:12px; margin-bottom:20px;}
+    .tv-kpi{padding:16px 18px;}
+    .tv-kpi .tv-kpi-label{font-size:13px; margin-bottom:6px;}
+    .tv-kpi .tv-kpi-value{font-size:36px;}
+
+    .tv-gauge-row{flex-direction:column; gap:26px; align-items:center; text-align:center;}
+    .tv-gauge-big{width:210px; height:210px;}
+    .tv-gauge-hole{inset:22px;}
+    .tv-gauge-big .tv-gauge-pct{font-size:52px; top:14px;}
+    .tv-ritmo{width:100%;}
+    .tv-ritmo .tv-ritmo-label{font-size:15px;}
+    .tv-ritmo .tv-ritmo-value{font-size:38px;}
+    .tv-ritmo .tv-ritmo-sub{font-size:15px; margin-top:12px;}
+
+    .tv-footer{flex-direction:column; gap:4px; font-size:13px; margin-top:18px;}
+
+    .tv-marcos-title{font-size:28px;}
+    .tv-marcos-sub{font-size:14px; margin-bottom:14px;}
+    .tv-marcos-bigpct{font-size:76px;}
+    .tv-marcos-bigsub{font-size:15px;}
+    .tv-marcos-track{height:20px; margin:16px 0 26px;}
+    .tv-marcos-timeline{flex-wrap:wrap; gap:16px 10px; justify-content:center;}
+    .tv-marcos-point{flex:0 0 30%;}
+    .tv-marcos-dot{width:18px; height:18px;}
+    .tv-marcos-date{font-size:13px;}
+    .tv-marcos-target{font-size:12px;}
+
+    .tv-dots{bottom:10px;}
+    .tv-dots span{width:20px; height:20px; padding:0; position:relative; background:transparent; cursor:pointer;}
+    .tv-dots span::before{
+      content:''; position:absolute; inset:7px; border-radius:50%; background:var(--hairline); transition:background .2s;
+    }
+    .tv-dots span.on::before{background:var(--brass);}
+  }
   .mini-card{
     background:var(--surface); border:1px solid var(--hairline); border-radius:var(--radius);
     padding:14px 16px; box-shadow:var(--shadow); cursor:pointer; transition:border-color .15s ease, transform .1s ease;
@@ -1365,12 +1413,15 @@ let tvTimer = null;
 function startTvMode(){
   tvIdx = 0;
   renderTvAll().then(()=> showTvScreen(tvIdx));
-  clearInterval(tvTimer);
-  tvTimer = setInterval(tvTick, 10000);
+  restartTvTimer();
 }
 function stopTvMode(){
   clearInterval(tvTimer);
   tvTimer = null;
+}
+function restartTvTimer(){
+  clearInterval(tvTimer);
+  tvTimer = setInterval(tvTick, 10000);
 }
 async function tvTick(){
   await renderTvAll();
@@ -1381,6 +1432,28 @@ function showTvScreen(idx){
   document.querySelectorAll('.tv-screen').forEach((el,i)=> el.classList.toggle('show', i===idx));
   document.querySelectorAll('#tvDots span').forEach((d,i)=> d.classList.toggle('on', i===idx));
 }
+/* Bolinhas clicáveis — no celular dá pra pular direto pra tela desejada em
+   vez de esperar os 10s do ciclo. Clicar reinicia a contagem do avanço
+   automático a partir dali. */
+document.querySelectorAll('#tvDots span').forEach((dot, idx)=>{
+  dot.addEventListener('click', ()=>{
+    tvIdx = idx;
+    showTvScreen(tvIdx);
+    if(tvTimer) restartTvTimer();
+  });
+});
+/* Pausa o ciclo automático quando a aba fica em segundo plano (celular
+   trocando de app, tela apagando) e retoma ao voltar — evita gastar
+   bateria/dados à toa e reinicia a contagem certinha ao voltar. */
+document.addEventListener('visibilitychange', ()=>{
+  if(!tvTimer && document.querySelector('.tab-btn.active')?.dataset.view !== 'tv') return;
+  if(document.hidden){
+    clearInterval(tvTimer); tvTimer = null;
+  } else if(document.querySelector('.tab-btn.active')?.dataset.view === 'tv'){
+    renderTvAll().then(()=> showTvScreen(tvIdx));
+    restartTvTimer();
+  }
+});
 
 const TV_LABEL_MAP = { ok:'No prazo', warn:'Atenção', crit:'Crítico' };
 const TV_COLOR_MAP = { ok:'#1F9D55', warn:'#C98A00', crit:'#C7414F' };
