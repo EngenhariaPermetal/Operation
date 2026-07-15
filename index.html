@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="chart.umd.min.js"></script>
+<script src="supabase.min.js"></script>
 <style>
   :root{
     --bg:#F1F2F5;
@@ -887,13 +887,19 @@ document.querySelectorAll('.proc-btn').forEach(btn=>{
   });
 });
 
+function safeRun(fn, label){
+  try{
+    const p = fn();
+    if(p && typeof p.catch === 'function') p.catch(e=> console.error(label, e));
+  }catch(e){ console.error(label, e); }
+}
 function renderActiveView(){
   const activeView = document.querySelector('.tab-btn.active').dataset.view;
-  if(activeView==='painel') renderPainel();
-  if(activeView==='apontamento') renderApontamento();
-  if(activeView==='marcos') renderMarcosTab();
-  if(activeView==='cronograma') renderCronograma();
-  if(activeView==='tv') renderTvAll();
+  if(activeView==='painel') safeRun(renderPainel, 'renderPainel');
+  if(activeView==='apontamento') safeRun(renderApontamento, 'renderApontamento');
+  if(activeView==='marcos') safeRun(renderMarcosTab, 'renderMarcosTab');
+  if(activeView==='cronograma') safeRun(renderCronograma, 'renderCronograma');
+  if(activeView==='tv') safeRun(renderTvAll, 'renderTvAll');
 }
 
 function showToast(msg){
@@ -975,9 +981,14 @@ function renderGauge(pctRaw, cfg){
    CHARTS
    ========================================================================= */
 let chartAcum, chartDaily, chartWeekly;
-function destroyCharts(){ [chartAcum, chartDaily, chartWeekly].forEach(c=> c && c.destroy()); }
+function destroyCharts(){
+  try{ [chartAcum, chartDaily, chartWeekly].forEach(c=> c && c.destroy()); }
+  catch(e){ console.error('destroyCharts', e); }
+}
 
 function buildAcumChart(rows){
+  if(typeof Chart === 'undefined'){ console.error('Chart.js indisponível — gráfico "Meta x Real acumulado" não pôde ser desenhado.'); return; }
+  try{
   const ctx = document.getElementById('chartAcum');
   chartAcum = new Chart(ctx, {
     type:'line',
@@ -998,9 +1009,12 @@ function buildAcumChart(rows){
       }
     }
   });
+  }catch(e){ console.error('buildAcumChart', e); }
 }
 
 function buildDailyChart(rows){
+  if(typeof Chart === 'undefined'){ console.error('Chart.js indisponível — gráfico diário não pôde ser desenhado.'); return; }
+  try{
   const withData = rows.filter(r=>!r.isOff).slice(-14);
   document.getElementById('dailyChartRange').textContent = withData.length ? `${fmtDateShort(withData[0].date)} – ${fmtDateShort(withData[withData.length-1].date)}` : '—';
   const ctx = document.getElementById('chartDaily');
@@ -1026,9 +1040,12 @@ function buildDailyChart(rows){
       }
     }
   });
+  }catch(e){ console.error('buildDailyChart', e); }
 }
 
 function buildWeeklyChart(rows){
+  if(typeof Chart === 'undefined'){ console.error('Chart.js indisponível — gráfico semanal não pôde ser desenhado.'); return; }
+  try{
   const weeks = [];
   let cur = [];
   rows.forEach((r,i)=>{
@@ -1052,6 +1069,7 @@ function buildWeeklyChart(rows){
                y:{ ticks:{callback:v=>v+'%', font:{family:'IBM Plex Mono', size:10}}, grid:{color:'#EFEDE6'} } }
     }
   });
+  }catch(e){ console.error('buildWeeklyChart', e); }
 }
 
 /* =========================================================================
