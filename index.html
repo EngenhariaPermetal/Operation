@@ -96,6 +96,23 @@
   .milestones-card{margin-bottom:20px;}
   .milestones-card td.mono{font-family:'IBM Plex Mono',monospace;}
 
+  /* ---------- Container de embarque (enche conforme a produção real) ---------- */
+  .container-row{
+    display:flex; align-items:center; gap:26px; flex-wrap:wrap;
+    padding:18px 20px; margin-bottom:18px;
+    background:var(--surface-warm); border:1px solid var(--hairline); border-radius:14px;
+  }
+  .container-visual{width:180px; height:120px; flex:none;}
+  .container-info{flex:1; min-width:220px;}
+  .container-info .ci-label{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;}
+  .container-info .ci-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;}
+  .container-info .ci-sub{font-size:13.5px; color:var(--ink-soft);}
+  .container-info .ci-pct{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:34px; margin-top:6px;}
+  @media (max-width:640px){
+    .container-row{flex-direction:column; text-align:center;}
+    .container-info{min-width:0;}
+  }
+
   /* ---------- MODO TV (kiosk rotativo, leitura a 5-10m) ---------- */
   body.tv-active main{max-width:none; padding:0;}
   body.tv-active .proc-bar{display:none;}
@@ -138,6 +155,18 @@
 
   .tv-footer{display:flex; justify-content:space-between; font-size:21px; color:var(--ink-faint); margin-top:26px;}
 
+  /* ---------- Mini container por processo (canto inferior direito) ---------- */
+  .tv-mini-container{
+    position:absolute; right:72px; bottom:80px; z-index:4;
+    display:flex; align-items:center; gap:22px;
+    background:var(--surface-warm); border:1px solid var(--hairline); border-radius:20px;
+    padding:20px 28px 20px 18px; box-shadow:var(--shadow);
+  }
+  .tv-mini-container-visual{width:120px; height:88px; flex:none;}
+  .tv-mini-container-label{font-size:16px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:4px;}
+  .tv-mini-container-sub{font-size:17px; color:var(--ink-faint); margin-bottom:4px; font-family:'IBM Plex Mono',monospace;}
+  .tv-mini-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:40px;}
+
   .tv-marcos-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:52px; margin-bottom:8px;}
   .tv-marcos-sub{font-size:23px; color:var(--ink-soft); margin-bottom:20px;}
   .tv-marcos-bigpct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:150px; text-align:center; line-height:1; color:var(--brass-deep);}
@@ -152,6 +181,16 @@
   .tv-marcos-dot.pending{background:var(--surface); border:3px solid var(--ink-faint);}
   .tv-marcos-date{font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--ink-soft); text-align:center;}
   .tv-marcos-target{font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--ink-faint);}
+
+  .tv-container-row{display:flex; align-items:center; gap:56px; margin:8px 0 30px; flex:1; min-height:0;}
+  .tv-container-visual{width:230px; height:160px; flex:none;}
+  .tv-container-info{flex:none;}
+  .tv-container-label{font-size:20px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; font-weight:700; margin-bottom:10px;}
+  .tv-container-value{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:40px; margin-bottom:6px;}
+  .tv-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:56px;}
+  .tv-marcos-overall{padding-left:56px; border-left:2px solid var(--hairline); text-align:left;}
+  .tv-marcos-overall .tv-marcos-bigpct{font-size:88px; text-align:left;}
+  .tv-marcos-overall .tv-marcos-bigsub{font-size:19px; text-align:left; margin-top:4px;}
 
   /* ---------- MODO TV em celular — mesmas telas, layout empilhado ---------- */
   @media (max-width:760px){
@@ -184,6 +223,14 @@
     .tv-ritmo .tv-ritmo-sub{font-size:15px; margin-top:12px;}
 
     .tv-footer{flex-direction:column; gap:4px; font-size:13px; margin-top:18px;}
+    .tv-mini-container{
+      position:static; margin:22px auto 0; width:fit-content;
+      padding:14px 20px 14px 12px; gap:16px;
+    }
+    .tv-mini-container-visual{width:90px; height:66px;}
+    .tv-mini-container-label{font-size:13px;}
+    .tv-mini-container-sub{font-size:14px;}
+    .tv-mini-container-pct{font-size:30px;}
 
     .tv-marcos-title{font-size:28px;}
     .tv-marcos-sub{font-size:14px; margin-bottom:14px;}
@@ -191,6 +238,16 @@
     .tv-marcos-bigsub{font-size:15px;}
     .tv-marcos-track{height:20px; margin:16px 0 26px;}
     .tv-marcos-timeline{flex:none; flex-wrap:wrap; gap:16px 10px; justify-content:center;}
+
+    .tv-container-row{flex-direction:column; gap:20px; flex:none; margin:4px 0 22px; text-align:center;}
+    .tv-container-info{text-align:center;}
+    .tv-container-visual{width:170px; height:118px;}
+    .tv-container-label{font-size:14px; margin-bottom:6px;}
+    .tv-container-value{font-size:26px;}
+    .tv-container-pct{font-size:38px;}
+    .tv-marcos-overall{padding-left:0; border-left:none; border-top:2px solid var(--hairline); padding-top:20px; text-align:center; width:100%;}
+    .tv-marcos-overall .tv-marcos-bigpct{font-size:56px; text-align:center;}
+    .tv-marcos-overall .tv-marcos-bigsub{font-size:14px; text-align:center;}
     .tv-marcos-point{flex:0 0 30%;}
     .tv-marcos-dot{width:18px; height:18px;}
     .tv-marcos-date{font-size:13px;}
@@ -416,6 +473,7 @@
         <h3>Marcos de Entrega do Projeto</h3>
         <span>Acumulado real da Esteira de Seleção × meta de <span class="mono">660,0 t</span> — base: embarques Pedido 3 + Pedido 4</span>
       </div>
+      <div class="container-row" id="containerRow"></div>
       <div class="table-scroll" style="max-height:none;">
         <table class="data-table">
           <thead><tr><th>Data do marco</th><th>Meta acumulada (t)</th><th>Real acumulado (t)</th><th>Situação</th></tr></thead>
@@ -858,6 +916,92 @@ function milestoneStatus(m, realMap){
 }
 
 /* =========================================================================
+   CONTAINER DE EMBARQUE — enche conforme a Esteira de Seleção produz,
+   dentro da "fatia" (marco anterior → próximo marco). Zera sozinho assim
+   que aquele marco é confirmado em Marcos (o próximo intervalo começa do
+   zero, no marco seguinte).
+   ========================================================================= */
+async function computeContainerProgress(pid){
+  pid = pid || 'esteira';
+  const realMap = await db.getMilestonesReal();
+  const procReal = await db.getReal(pid);
+  const procAcum = Object.values(procReal).reduce((s,v)=> s + (Number(v)||0), 0);
+
+  let confirmedBase = 0;
+  let idx = 0;
+  for(; idx < MILESTONES.length; idx++){
+    const st = milestoneStatus(MILESTONES[idx], realMap);
+    if(st.status === 'ok'){ confirmedBase = MILESTONES[idx].target; }
+    else break;
+  }
+  if(idx >= MILESTONES.length){
+    return { done:true, pct:100, segSize:0, segTarget:PROJETO_TOTAL_TON, milestone:null, producedInSeg:0, confirmedBase, procAcum };
+  }
+  const milestone = MILESTONES[idx];
+  const segSize = milestone.target - confirmedBase;
+  const producedInSeg = Math.max(0, procAcum - confirmedBase);
+  const pct = segSize>0 ? Math.min(producedInSeg/segSize*100, 100) : 100;
+  return { done:false, pct, segSize, segTarget:milestone.target, milestone, producedInSeg, confirmedBase, procAcum, idx };
+}
+
+function buildContainerSVG(pct, uid){
+  const p = Math.max(0, Math.min(100, pct));
+  const W=220, H=150, bodyX=14, bodyY=12, bodyW=W-28, bodyH=H-40, radius=8;
+  const fillH = bodyH * (p/100);
+  const fillY = bodyY + bodyH - fillH;
+  const color = p>=100 ? 'var(--ok)' : (p>=50 ? 'var(--brass)' : 'var(--brass-light)');
+  let ridges = '';
+  for(let i=1;i<7;i++){
+    const x = bodyX + (bodyW/7)*i;
+    ridges += `<line x1="${x}" y1="${bodyY}" x2="${x}" y2="${bodyY+bodyH}" stroke="rgba(0,0,0,0.07)" stroke-width="2"/>`;
+  }
+  return `
+  <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Container ${p.toFixed(0)}% cheio">
+    <defs>
+      <clipPath id="clip-${uid}">
+        <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${radius}"/>
+      </clipPath>
+    </defs>
+    <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${radius}" fill="var(--bg)"/>
+    <g clip-path="url(#clip-${uid})">
+      <rect x="${bodyX}" y="${fillY}" width="${bodyW}" height="${fillH}" fill="${color}"/>
+      ${ridges}
+    </g>
+    <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${radius}" fill="none" stroke="var(--ink)" stroke-opacity="0.22" stroke-width="3"/>
+    <line x1="${bodyX+bodyW-16}" y1="${bodyY}" x2="${bodyX+bodyW-16}" y2="${bodyY+bodyH}" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
+    <rect x="${bodyX+10}" y="${bodyY+bodyH}" width="16" height="9" rx="2" fill="var(--ink-faint)"/>
+    <rect x="${bodyX+bodyW-26}" y="${bodyY+bodyH}" width="16" height="9" rx="2" fill="var(--ink-faint)"/>
+  </svg>`;
+}
+
+async function renderContainerVisual(targetElId, sizeClass){
+  const el = document.getElementById(targetElId);
+  if(!el) return;
+  const c = await computeContainerProgress('esteira');
+  const uid = targetElId;
+  if(c.done){
+    el.innerHTML = `
+      <div class="container-visual ${sizeClass||''}">${buildContainerSVG(100, uid)}</div>
+      <div class="container-info">
+        <div class="ci-label">Container de embarque</div>
+        <div class="ci-title">Todos os marcos confirmados 🎉</div>
+        <div class="ci-sub">${fmt1(PROJETO_TOTAL_TON)} t do projeto entregues</div>
+        <div class="ci-pct" style="color:var(--ok);">100%</div>
+      </div>`;
+    return;
+  }
+  const color = c.pct>=100 ? 'var(--ok)' : (c.pct>=50 ? 'var(--brass-deep)' : 'var(--brass-deep)');
+  el.innerHTML = `
+    <div class="container-visual ${sizeClass||''}">${buildContainerSVG(c.pct, uid)}</div>
+    <div class="container-info">
+      <div class="ci-label">Container atual · rumo ao marco de ${fmtDateShort(c.milestone.date)}</div>
+      <div class="ci-title">${fmt1(c.producedInSeg)} t / ${fmt1(c.segSize)} t</div>
+      <div class="ci-sub">Meta acumulada do marco: ${fmt1(c.segTarget)} t · zera ao confirmar a entrega em "Marcos"</div>
+      <div class="ci-pct" style="color:${color};">${fmt1(c.pct)}%</div>
+    </div>`;
+}
+
+/* =========================================================================
    CÁLCULOS DERIVADOS
    ========================================================================= */
 function statusFromPct(pct, cfg){
@@ -1144,6 +1288,7 @@ function buildWeeklyChart(rows){
    MARCOS DE ENTREGA DO PROJETO (comparados ao acumulado real da Esteira)
    ========================================================================= */
 async function renderMilestones(){
+  await renderContainerVisual('containerRow');
   const real = await db.getMilestonesReal();
   const tbody = document.getElementById('milestonesBody');
   tbody.innerHTML = '';
@@ -1495,6 +1640,34 @@ async function buildTvProcessHTML(pid){
 
   const pctDisplay = Math.max(0, Math.min(d.aderencia, 999));
   const ringPct = Math.max(0, Math.min(d.aderencia, 100));
+
+  /* Produto finalizado = apontamento da Esteira de Seleção, sempre — é o
+     último processo, então é o que efetivamente conta como pronto para
+     embarque. Por isso esse container usa sempre 'esteira', em qualquer
+     tela do Modo TV (Galvanoplastia, Forno ou a própria Esteira). */
+  const container = await computeContainerProgress('esteira');
+  const miniContainerHTML = container.done
+    ? `
+      <div class="tv-mini-container">
+        <div class="tv-mini-container-visual">${buildContainerSVG(100, 'mini-'+pid)}</div>
+        <div>
+          <div class="tv-mini-container-label">Produto finalizado</div>
+          <div class="tv-mini-container-sub">projeto concluído</div>
+          <div class="tv-mini-container-pct" style="color:var(--ok);">100%</div>
+        </div>
+      </div>
+    `
+    : `
+      <div class="tv-mini-container">
+        <div class="tv-mini-container-visual">${buildContainerSVG(container.pct, 'mini-'+pid)}</div>
+        <div>
+          <div class="tv-mini-container-label">Produto finalizado · marco ${fmtDateShort(container.milestone.date)}</div>
+          <div class="tv-mini-container-sub">${fmt1(container.producedInSeg)} / ${fmt1(container.segSize)} t (Esteira)</div>
+          <div class="tv-mini-container-pct" style="color:${container.pct>=100?'var(--ok)':'var(--brass-deep)'}">${fmt1(container.pct)}%</div>
+        </div>
+      </div>
+    `;
+
   return `
     <div class="tv-header">
       <div class="tv-proc-name">${processLabel(pid)}</div>
@@ -1520,6 +1693,7 @@ async function buildTvProcessHTML(pid){
         <div class="tv-ritmo-sub">Faltam <b>${d.remainingDays}</b> dias úteis · meta atual: <b>${fmt1(d.currentMeta)} t/dia</b></div>
       </div>
     </div>
+    ${miniContainerHTML}
     <div class="tv-footer">
       <span>${d.cursorDate ? 'Última produção lançada: '+fmtDateLong(d.cursorDate) : 'Nenhum apontamento lançado ainda'}</span>
       <span>${d.rows.length ? 'Cronograma: '+fmtDateShort(d.rows[0].date)+' a '+fmtDateShort(d.rows[d.rows.length-1].date) : ''}</span>
@@ -1533,6 +1707,7 @@ async function buildTvMarcosHTML(){
   const confirmed = values.length ? Math.max(...values) : 0;
   const pct = Math.min(confirmed / PROJETO_TOTAL_TON * 100, 100);
   const next = MILESTONES.find(m=> milestoneStatus(m, real).status !== 'ok');
+  const container = await computeContainerProgress('esteira');
 
   const timeline = MILESTONES.map(m=>{
     const st = milestoneStatus(m, real);
@@ -1545,12 +1720,27 @@ async function buildTvMarcosHTML(){
     `;
   }).join('');
 
+  const containerHTML = container.done
+    ? `<div class="tv-container-label">Todos os marcos confirmados 🎉</div>`
+    : `
+      <div class="tv-container-visual">${buildContainerSVG(container.pct, 'tvmarcos')}</div>
+      <div class="tv-container-info">
+        <div class="tv-container-label">Container atual · rumo ao marco de ${fmtDateShort(container.milestone.date)}</div>
+        <div class="tv-container-value">${fmt1(container.producedInSeg)} / ${fmt1(container.segSize)} t</div>
+        <div class="tv-container-pct" style="color:${container.pct>=100?'var(--ok)':'var(--brass-deep)'}">${fmt1(container.pct)}%</div>
+      </div>
+    `;
+
   return `
     <div class="tv-marcos-title">Marcos de Entrega do Projeto</div>
     <div class="tv-marcos-sub">Acumulado confirmado × meta final de ${fmt1(PROJETO_TOTAL_TON)} t (Pedido 3 + Pedido 4)</div>
-    <div class="tv-marcos-bigpct">${fmt1(pct)}%</div>
-    <div class="tv-marcos-bigsub">${fmt1(confirmed)} t confirmadas de ${fmt1(PROJETO_TOTAL_TON)} t</div>
-    <div class="tv-marcos-track"><div class="tv-marcos-fill" style="width:${pct}%"></div></div>
+    <div class="tv-container-row">
+      ${containerHTML}
+      <div class="tv-marcos-overall">
+        <div class="tv-marcos-bigpct">${fmt1(pct)}%</div>
+        <div class="tv-marcos-bigsub">${fmt1(confirmed)} t confirmadas de ${fmt1(PROJETO_TOTAL_TON)} t</div>
+      </div>
+    </div>
     <div class="tv-marcos-timeline">${timeline}</div>
     <div class="tv-footer">
       <span>${next ? 'Próximo marco: '+fmtDateLong(next.date)+' · meta '+fmt1(next.target)+' t' : 'Todos os marcos confirmados'}</span>
