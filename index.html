@@ -102,7 +102,10 @@
     padding:18px 20px; margin-bottom:18px;
     background:var(--surface-warm); border:1px solid var(--hairline); border-radius:14px;
   }
-  .container-visual{width:180px; height:120px; flex:none;}
+  .container-trio{display:flex; align-items:flex-end; gap:14px; flex:none;}
+  .container-trio-item{width:96px; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .container-trio-item > svg{width:96px; height:66px;}
+  .container-trio-num{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-faint); font-weight:600;}
   .container-info{flex:1; min-width:220px;}
   .container-info .ci-label{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:6px;}
   .container-info .ci-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; margin-bottom:4px;}
@@ -110,6 +113,7 @@
   .container-info .ci-pct{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:34px; margin-top:6px;}
   @media (max-width:640px){
     .container-row{flex-direction:column; text-align:center;}
+    .container-trio{justify-content:center;}
     .container-info{min-width:0;}
   }
 
@@ -160,12 +164,15 @@
     position:absolute; right:72px; bottom:80px; z-index:4;
     display:flex; align-items:center; gap:22px;
     background:var(--surface-warm); border:1px solid var(--hairline); border-radius:20px;
-    padding:20px 28px 20px 18px; box-shadow:var(--shadow);
+    padding:18px 26px 18px 18px; box-shadow:var(--shadow);
   }
-  .tv-mini-container-visual{width:120px; height:88px; flex:none;}
-  .tv-mini-container-label{font-size:16px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:4px;}
-  .tv-mini-container-sub{font-size:17px; color:var(--ink-faint); margin-bottom:4px; font-family:'IBM Plex Mono',monospace;}
-  .tv-mini-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:40px;}
+  .tv-mini-container-trio{display:flex; align-items:flex-end; gap:10px; flex:none;}
+  .tv-mini-container-trio-item{width:56px; display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .tv-mini-container-trio-item > svg{width:56px; height:40px;}
+  .tv-mini-container-trio-item .container-trio-num{font-size:11px;}
+  .tv-mini-container-label{font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:4px;}
+  .tv-mini-container-sub{font-size:16px; color:var(--ink-faint); margin-bottom:4px; font-family:'IBM Plex Mono',monospace;}
+  .tv-mini-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:36px;}
 
   .tv-marcos-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:52px; margin-bottom:8px;}
   .tv-marcos-sub{font-size:23px; color:var(--ink-soft); margin-bottom:20px;}
@@ -183,10 +190,13 @@
   .tv-marcos-target{font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--ink-faint);}
 
   .tv-container-row{display:flex; align-items:center; gap:56px; margin:8px 0 30px; flex:1; min-height:0;}
-  .tv-container-visual{width:230px; height:160px; flex:none;}
+  .tv-container-trio{display:flex; align-items:flex-end; gap:20px; flex:none;}
+  .tv-container-trio-item{width:120px; display:flex; flex-direction:column; align-items:center; gap:8px;}
+  .tv-container-trio-item > svg{width:120px; height:84px;}
+  .tv-container-trio-item .container-trio-num{font-size:16px;}
   .tv-container-info{flex:none;}
   .tv-container-label{font-size:20px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; font-weight:700; margin-bottom:10px;}
-  .tv-container-value{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:40px; margin-bottom:6px;}
+  .tv-container-value{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:32px; margin-bottom:6px;}
   .tv-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:56px;}
   .tv-marcos-overall{padding-left:56px; border-left:2px solid var(--hairline); text-align:left;}
   .tv-marcos-overall .tv-marcos-bigpct{font-size:88px; text-align:left;}
@@ -227,10 +237,11 @@
       position:static; margin:22px auto 0; width:fit-content;
       padding:14px 20px 14px 12px; gap:16px;
     }
-    .tv-mini-container-visual{width:90px; height:66px;}
-    .tv-mini-container-label{font-size:13px;}
-    .tv-mini-container-sub{font-size:14px;}
-    .tv-mini-container-pct{font-size:30px;}
+    .tv-mini-container-trio-item{width:44px;}
+    .tv-mini-container-trio-item > svg{width:44px; height:32px;}
+    .tv-mini-container-label{font-size:12px;}
+    .tv-mini-container-sub{font-size:13px;}
+    .tv-mini-container-pct{font-size:26px;}
 
     .tv-marcos-title{font-size:28px;}
     .tv-marcos-sub{font-size:14px; margin-bottom:14px;}
@@ -241,9 +252,11 @@
 
     .tv-container-row{flex-direction:column; gap:20px; flex:none; margin:4px 0 22px; text-align:center;}
     .tv-container-info{text-align:center;}
-    .tv-container-visual{width:170px; height:118px;}
+    .tv-container-trio{justify-content:center;}
+    .tv-container-trio-item{width:78px;}
+    .tv-container-trio-item > svg{width:78px; height:54px;}
     .tv-container-label{font-size:14px; margin-bottom:6px;}
-    .tv-container-value{font-size:26px;}
+    .tv-container-value{font-size:20px;}
     .tv-container-pct{font-size:38px;}
     .tv-marcos-overall{padding-left:0; border-left:none; border-top:2px solid var(--hairline); padding-top:20px; text-align:center; width:100%;}
     .tv-marcos-overall .tv-marcos-bigpct{font-size:56px; text-align:center;}
@@ -974,16 +987,54 @@ function buildContainerSVG(pct, uid){
   </svg>`;
 }
 
+/* =========================================================================
+   TRIO DE CONTAINERS — cada marco de entrega é composto por 3 containers
+   físicos. A produção enche um de cada vez, em ordem: o 1º vai a 100%
+   antes do 2º começar a encher, e assim por diante. Zera junto com o
+   container "pai" quando o marco é confirmado.
+   ========================================================================= */
+function computeSubContainers(producedInSeg, segSize, count){
+  count = count || 3;
+  if(segSize <= 0) return Array(count).fill(100);
+  const cap = segSize / count;
+  const fills = [];
+  for(let i=0; i<count; i++){
+    const raw = producedInSeg - (i*cap);
+    fills.push(Math.max(0, Math.min(cap>0 ? raw/cap*100 : 100, 100)));
+  }
+  return fills;
+}
+
+function buildContainerTrioHTML(containerData, uidPrefix, itemClass){
+  const fills = containerData.done
+    ? [100,100,100]
+    : computeSubContainers(containerData.producedInSeg, containerData.segSize, 3);
+  return fills.map((f,i)=>
+    `<div class="${itemClass||'container-trio-item'}">
+      ${buildContainerSVG(f, uidPrefix+'-'+i)}
+      <div class="container-trio-num">${i+1}${f>=100?' ✓':''}</div>
+    </div>`
+  ).join('');
+}
+function activeContainerLabel(containerData){
+  if(containerData.done) return 'Todos os 3 containers cheios';
+  const fills = computeSubContainers(containerData.producedInSeg, containerData.segSize, 3);
+  const activeIdx = fills.findIndex(f=> f<100);
+  if(activeIdx === -1) return 'Os 3 containers cheios · aguardando confirmação do marco';
+  return `Container ${activeIdx+1} de 3 · ${fmt1(fills[activeIdx])}%`;
+}
+
 async function renderContainerVisual(targetElId, sizeClass){
   const el = document.getElementById(targetElId);
   if(!el) return;
   const c = await computeContainerProgress('esteira');
   const uid = targetElId;
+  const trioHTML = `<div class="container-trio">${buildContainerTrioHTML(c, uid)}</div>`;
   if(c.done){
     el.innerHTML = `
-      <div class="container-visual ${sizeClass||''}">${buildContainerSVG(100, uid)}</div>
+      ${trioHTML}
       <div class="container-info">
-        <div class="ci-label">Container de embarque</div>
+        <div class="ci-label">Containers de embarque</div>
         <div class="ci-title">Todos os marcos confirmados 🎉</div>
         <div class="ci-sub">${fmt1(PROJETO_TOTAL_TON)} t do projeto entregues</div>
         <div class="ci-pct" style="color:var(--ok);">100%</div>
@@ -992,11 +1043,11 @@ async function renderContainerVisual(targetElId, sizeClass){
   }
   const color = c.pct>=100 ? 'var(--ok)' : (c.pct>=50 ? 'var(--brass-deep)' : 'var(--brass-deep)');
   el.innerHTML = `
-    <div class="container-visual ${sizeClass||''}">${buildContainerSVG(c.pct, uid)}</div>
+    ${trioHTML}
     <div class="container-info">
-      <div class="ci-label">Container atual · rumo ao marco de ${fmtDateShort(c.milestone.date)}</div>
-      <div class="ci-title">${fmt1(c.producedInSeg)} t / ${fmt1(c.segSize)} t</div>
-      <div class="ci-sub">Meta acumulada do marco: ${fmt1(c.segTarget)} t · zera ao confirmar a entrega em "Marcos"</div>
+      <div class="ci-label">3 containers · rumo ao marco de ${fmtDateShort(c.milestone.date)}</div>
+      <div class="ci-title">${activeContainerLabel(c)}</div>
+      <div class="ci-sub">${fmt1(c.producedInSeg)} t / ${fmt1(c.segSize)} t do marco (${fmt1(c.segTarget)} t acumulado) · zera ao confirmar em "Marcos"</div>
       <div class="ci-pct" style="color:${color};">${fmt1(c.pct)}%</div>
     </div>`;
 }
@@ -1649,7 +1700,7 @@ async function buildTvProcessHTML(pid){
   const miniContainerHTML = container.done
     ? `
       <div class="tv-mini-container">
-        <div class="tv-mini-container-visual">${buildContainerSVG(100, 'mini-'+pid)}</div>
+        <div class="tv-mini-container-trio">${buildContainerTrioHTML(container, 'mini-'+pid, 'tv-mini-container-trio-item')}</div>
         <div>
           <div class="tv-mini-container-label">Produto finalizado</div>
           <div class="tv-mini-container-sub">projeto concluído</div>
@@ -1659,10 +1710,10 @@ async function buildTvProcessHTML(pid){
     `
     : `
       <div class="tv-mini-container">
-        <div class="tv-mini-container-visual">${buildContainerSVG(container.pct, 'mini-'+pid)}</div>
+        <div class="tv-mini-container-trio">${buildContainerTrioHTML(container, 'mini-'+pid, 'tv-mini-container-trio-item')}</div>
         <div>
           <div class="tv-mini-container-label">Produto finalizado · marco ${fmtDateShort(container.milestone.date)}</div>
-          <div class="tv-mini-container-sub">${fmt1(container.producedInSeg)} / ${fmt1(container.segSize)} t (Esteira)</div>
+          <div class="tv-mini-container-sub">${activeContainerLabel(container)}</div>
           <div class="tv-mini-container-pct" style="color:${container.pct>=100?'var(--ok)':'var(--brass-deep)'}">${fmt1(container.pct)}%</div>
         </div>
       </div>
@@ -1723,10 +1774,10 @@ async function buildTvMarcosHTML(){
   const containerHTML = container.done
     ? `<div class="tv-container-label">Todos os marcos confirmados 🎉</div>`
     : `
-      <div class="tv-container-visual">${buildContainerSVG(container.pct, 'tvmarcos')}</div>
+      <div class="tv-container-trio">${buildContainerTrioHTML(container, 'tvmarcos', 'tv-container-trio-item')}</div>
       <div class="tv-container-info">
-        <div class="tv-container-label">Container atual · rumo ao marco de ${fmtDateShort(container.milestone.date)}</div>
-        <div class="tv-container-value">${fmt1(container.producedInSeg)} / ${fmt1(container.segSize)} t</div>
+        <div class="tv-container-label">3 containers · rumo ao marco de ${fmtDateShort(container.milestone.date)}</div>
+        <div class="tv-container-value">${activeContainerLabel(container)}</div>
         <div class="tv-container-pct" style="color:${container.pct>=100?'var(--ok)':'var(--brass-deep)'}">${fmt1(container.pct)}%</div>
       </div>
     `;
