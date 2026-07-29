@@ -729,6 +729,10 @@ const MILESTONES = [
   { date:"2026-10-14", target:560.56 },
   { date:"2026-10-26", target:620.62 }
 ];
+/* Total usado no "% confirmado" dos Marcos = soma só dos marcos com data
+   de embarque definida (620,62 t) — não os 660 t do projeto inteiro,
+   porque ~39,4 t ainda não têm marco/data associado na planilha. */
+const MARCOS_TOTAL_TON = MILESTONES[MILESTONES.length-1].target;
 
 const WEEKDAY_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const MONTH_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -948,7 +952,7 @@ async function computeContainerProgress(pid){
     else break;
   }
   if(idx >= MILESTONES.length){
-    return { done:true, pct:100, segSize:0, segTarget:PROJETO_TOTAL_TON, milestone:null, producedInSeg:0, confirmedBase, procAcum };
+    return { done:true, pct:100, segSize:0, segTarget:MARCOS_TOTAL_TON, milestone:null, producedInSeg:0, confirmedBase, procAcum };
   }
   const milestone = MILESTONES[idx];
   const segSize = milestone.target - confirmedBase;
@@ -1036,7 +1040,7 @@ async function renderContainerVisual(targetElId, sizeClass){
       <div class="container-info">
         <div class="ci-label">Containers de embarque</div>
         <div class="ci-title">Todos os marcos confirmados 🎉</div>
-        <div class="ci-sub">${fmt1(PROJETO_TOTAL_TON)} t do projeto entregues</div>
+        <div class="ci-sub">${fmt1(MARCOS_TOTAL_TON)} t do projeto entregues</div>
         <div class="ci-pct" style="color:var(--ok);">100%</div>
       </div>`;
     return;
@@ -1762,7 +1766,7 @@ async function buildTvMarcosHTML(){
   const real = await db.getMilestonesReal();
   const values = Object.values(real).filter(v=> typeof v === 'number');
   const confirmed = values.length ? Math.max(...values) : 0;
-  const pct = Math.min(confirmed / PROJETO_TOTAL_TON * 100, 100);
+  const pct = Math.min(confirmed / MARCOS_TOTAL_TON * 100, 100);
   const next = MILESTONES.find(m=> milestoneStatus(m, real).status !== 'ok');
   const container = await computeContainerProgress('esteira');
 
@@ -1790,12 +1794,12 @@ async function buildTvMarcosHTML(){
 
   return `
     <div class="tv-marcos-title">Marcos de Entrega do Projeto</div>
-    <div class="tv-marcos-sub">Acumulado confirmado × meta final de ${fmt1(PROJETO_TOTAL_TON)} t (Pedido 3 + Pedido 4)</div>
+    <div class="tv-marcos-sub">Acumulado confirmado × meta final de ${fmt1(MARCOS_TOTAL_TON)} t (Pedido 3 + Pedido 4)</div>
     <div class="tv-container-row">
       ${containerHTML}
       <div class="tv-marcos-overall">
         <div class="tv-marcos-bigpct">${fmt1(pct)}%</div>
-        <div class="tv-marcos-bigsub">${fmt1(confirmed)} t confirmadas de ${fmt1(PROJETO_TOTAL_TON)} t</div>
+        <div class="tv-marcos-bigsub">${fmt1(confirmed)} t confirmadas de ${fmt1(MARCOS_TOTAL_TON)} t</div>
       </div>
     </div>
     <div class="tv-marcos-timeline">${timeline}</div>
