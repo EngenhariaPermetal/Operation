@@ -531,9 +531,9 @@
       </div>
 
       <div class="card">
-        <div class="card-label">Balanço acumulado (t) — até hoje</div>
+        <div class="card-label">Balanço acumulado (t) — até ontem</div>
         <div class="stat-stack">
-          <div class="stat-row"><span class="label">Meta acumulada (até hoje)</span><span class="value mono" id="statMetaAcum">--</span></div>
+          <div class="stat-row"><span class="label">Meta acumulada (até ontem)</span><span class="value mono" id="statMetaAcum">--</span></div>
           <div class="stat-row"><span class="label">Real acumulado</span><span class="value mono" id="statRealAcum">--</span></div>
           <div class="stat-row"><span class="label">Diferença</span><span class="value mono" id="statDiff">--</span></div>
         </div>
@@ -1071,12 +1071,12 @@ async function computeDerived(pid){
   const cfg = await db.getConfig(pid);
   const today = todayIsoStr();
 
-  let metaAcum = 0, realAcum = 0, metaAteHoje = 0;
+  let metaAcum = 0, realAcum = 0, metaAteOntem = 0;
   let cursorDate = null;
   const rows = schedule.map(day=>{
     const isOff = day.meta === null || day.meta === undefined;
     if(!isOff) metaAcum += day.meta;
-    if(!isOff && day.date <= today) metaAteHoje += day.meta;
+    if(!isOff && day.date < today) metaAteOntem += day.meta;
     const r = real[day.date];
     const hasReal = (r !== undefined && r !== null);
     if(hasReal){ realAcum += r; cursorDate = day.date; }
@@ -1084,12 +1084,14 @@ async function computeDerived(pid){
   });
 
   const totalMeta = schedule.reduce((s,d)=> s + (d.meta||0), 0);
-  /* Diferença e aderência agora comparam com o que deveríamos ter produzido
-     ATÉ HOJE (metaAteHoje) — não mais com a meta do projeto inteiro. É o
-     que dá pra acompanhar dia a dia; a meta total do projeto (totalMeta)
-     continua existindo só para o cálculo do "ritmo necessário" abaixo. */
-  const diff = realAcum - metaAteHoje;
-  const aderencia = metaAteHoje > 0 ? (realAcum/metaAteHoje*100) : 100;
+  /* Diferença e aderência comparam com o que deveríamos ter produzido ATÉ
+     ONTEM (metaAteOntem) — não "até hoje", porque o apontamento é sempre
+     lançado com um dia de atraso (registra a produção do dia anterior).
+     Comparar com "até hoje" penalizava injustamente o dia corrente, que
+     ainda nem foi lançado. A meta total do projeto (totalMeta) continua
+     existindo só para o cálculo do "ritmo necessário" abaixo. */
+  const diff = realAcum - metaAteOntem;
+  const aderencia = metaAteOntem > 0 ? (realAcum/metaAteOntem*100) : 100;
   const status = statusFromPct(aderencia, cfg);
 
   const cursorIdx = cursorDate ? rows.findIndex(r=>r.date===cursorDate) : -1;
@@ -1100,7 +1102,7 @@ async function computeDerived(pid){
   const currentMeta = cursorIdx >= 0 ? (rows.slice(0,cursorIdx+1).reverse().find(r=>!r.isOff)?.meta || 0) : (rows.find(r=>!r.isOff)?.meta || 0);
   const diasEquivalentes = currentMeta > 0 ? Math.abs(diff)/currentMeta : 0;
 
-  return { rows, cfg, metaAcum, metaAteHoje, realAcum, diff, aderencia, status, totalMeta,
+  return { rows, cfg, metaAcum, metaAteOntem, realAcum, diff, aderencia, status, totalMeta,
            remainingDays: remainingDays.length, neededPace, currentMeta, diasEquivalentes,
            cursorDate, cursorIdx };
 }
@@ -1415,7 +1417,7 @@ async function renderPainel(){
 
   renderGauge(d.aderencia, d.cfg);
 
-  document.getElementById('statMetaAcum').textContent = fmt1(d.metaAteHoje)+' t';
+  document.getElementById('statMetaAcum').textContent = fmt1(d.metaAteOntem)+' t';
   document.getElementById('statRealAcum').textContent = fmt1(d.realAcum)+' t';
   const diffEl = document.getElementById('statDiff');
   diffEl.textContent = fmtSigned(d.diff)+' t';
@@ -1738,7 +1740,7 @@ async function buildTvProcessHTML(pid){
       </div>
     </div>
     <div class="tv-kpi-row">
-      <div class="tv-kpi"><div class="tv-kpi-label">Meta acumulada · até hoje</div><div class="tv-kpi-value">${fmt1(d.metaAteHoje)} t</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Meta acumulada · até ontem</div><div class="tv-kpi-value">${fmt1(d.metaAteOntem)} t</div></div>
       <div class="tv-kpi"><div class="tv-kpi-label">Real acumulado</div><div class="tv-kpi-value">${fmt1(d.realAcum)} t</div></div>
       <div class="tv-kpi"><div class="tv-kpi-label">Diferença</div><div class="tv-kpi-value ${d.diff>=0?'ok':(d.status==='crit'?'crit':'warn')}">${fmtSigned(d.diff)} t</div></div>
     </div>
