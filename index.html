@@ -174,6 +174,15 @@
   .tv-mini-container-sub{font-size:16px; color:var(--ink-faint); margin-bottom:4px; font-family:'IBM Plex Mono',monospace;}
   .tv-mini-container-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:36px;}
 
+  .tv-rejection{
+    position:absolute; left:72px; bottom:80px; z-index:4;
+    background:var(--surface-warm); border:1px solid var(--hairline); border-radius:20px;
+    padding:16px 26px; box-shadow:var(--shadow); text-align:left;
+  }
+  .tv-rejection-label{font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;}
+  .tv-rejection-pct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:40px; color:var(--crit); line-height:1;}
+  .tv-rejection-sub{font-size:15px; color:var(--ink-faint); margin-top:6px; font-family:'IBM Plex Mono',monospace;}
+
   .tv-marcos-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:52px; margin-bottom:8px;}
   .tv-marcos-sub{font-size:23px; color:var(--ink-soft); margin-bottom:20px;}
   .tv-marcos-bigpct{font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:150px; text-align:center; line-height:1; color:var(--brass-deep);}
@@ -242,6 +251,13 @@
     .tv-mini-container-label{font-size:12px;}
     .tv-mini-container-sub{font-size:13px;}
     .tv-mini-container-pct{font-size:26px;}
+    .tv-rejection{
+      position:static; margin:16px auto 0; width:fit-content; text-align:center;
+      padding:14px 20px;
+    }
+    .tv-rejection-pct{font-size:32px;}
+    .tv-rejection-label{font-size:13px;}
+    .tv-rejection-sub{font-size:13px;}
 
     .tv-marcos-title{font-size:28px;}
     .tv-marcos-sub{font-size:14px; margin-bottom:14px;}
@@ -350,7 +366,15 @@
 
   /* ---------- Charts ---------- */
   .chart-card{margin-bottom:18px;}
-  .chart-card-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px;}
+  .rejection-card{margin-bottom:18px;}
+  .rejection-row{display:flex; gap:18px; flex-wrap:wrap;}
+  .rejection-stat{
+    flex:1; min-width:160px; background:var(--surface-warm); border:1px solid var(--hairline);
+    border-radius:12px; padding:16px 18px;
+  }
+  .rejection-stat .label{display:block; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:8px;}
+  .rejection-stat .value{font-size:26px; font-weight:600;}
+  .rejection-stat.rejection-pct .value{color:var(--crit); font-size:30px; font-weight:700;}  .chart-card-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px;}
   .chart-card-head h3{font-family:'Space Grotesk',sans-serif; font-size:15px; margin:0;}
   .chart-card-head span{font-size:12px; color:var(--ink-soft);}
   .chart-box{height:280px;}
@@ -550,6 +574,18 @@
       </div>
     </div>
 
+    <div class="card rejection-card" id="rejectionCard" style="display:none;">
+      <div class="chart-card-head" style="margin-bottom:10px;">
+        <h3>Índice de Material Reprovado</h3>
+        <span>Reprovado ÷ (aprovado + reprovado) · acumulado do processo</span>
+      </div>
+      <div class="rejection-row">
+        <div class="rejection-stat"><span class="label">Aprovado</span><span class="value mono" id="rejApproved">--</span></div>
+        <div class="rejection-stat"><span class="label">Reprovado</span><span class="value mono" id="rejRejected">--</span></div>
+        <div class="rejection-stat rejection-pct"><span class="label">Índice de reprovação</span><span class="value mono" id="rejIndice">--</span></div>
+      </div>
+    </div>
+
     <div class="card chart-card">
       <div class="chart-card-head">
         <h3>Meta acumulada × Real acumulado</h3>
@@ -587,7 +623,7 @@
     <div class="table-scroll">
       <table class="data-table">
         <thead>
-          <tr><th>Data</th><th>Dia</th><th>Meta (t)</th><th>Real (t)</th><th>Status</th></tr>
+          <tr><th>Data</th><th>Dia</th><th>Meta (t)</th><th>Real (t)</th><th id="thReprovado">Reprovado (t)</th><th>Status</th></tr>
         </thead>
         <tbody id="apontamentoBody"></tbody>
       </table>
@@ -698,6 +734,11 @@ const PROCESSES = [
   { id:'esteira',        label:'Esteira de Seleção' }
 ];
 let currentProcess = PROCESSES[0].id;
+
+/* Material reprovado só é apontado/monitorado na Galvanoplastia e no Forno
+   (a Esteira de Seleção é a etapa final de seleção, não de reprovação). */
+const REJECTION_TRACKED_PROCESSES = ['galvanoplastia', 'forno'];
+function tracksRejection(pid){ return REJECTION_TRACKED_PROCESSES.includes(pid); }
 
 /* Cronogramas projetados a partir da aba PLANEJAMENTO (20/07/2026 em diante),
    respeitando: Galvanoplastia e Forno com meta MÁXIMA de 8 t/dia (mesmo ritmo
@@ -837,6 +878,34 @@ const db = {
     catch(e){ console.error('clearReal', pid, e); }
     window.dispatchEvent(new Event('latao:data-changed'));
   },
+  /* Material reprovado — só faz sentido para Galvanoplastia e Forno, mas a
+     tabela é genérica por processo, igual à de produção real. */
+  async getRejected(pid){
+    try{
+      const { data, error } = await sb.from('rejected_material').select('date, rejected').eq('process_id', pid);
+      if(error) throw error;
+      const map = {}; (data||[]).forEach(r=> map[r.date] = Number(r.rejected));
+      return map;
+    }catch(e){ console.error('getRejected', pid, e); return {}; }
+  },
+  async setRejected(pid, date, value){
+    try{
+      if(value === null || value === '' || value === undefined){
+        await sb.from('rejected_material').delete().eq('process_id', pid).eq('date', date);
+      } else {
+        const { error } = await sb.from('rejected_material').upsert(
+          { process_id: pid, date, rejected: Number(value) }, { onConflict: 'process_id,date' }
+        );
+        if(error) throw error;
+      }
+    }catch(e){ console.error('setRejected', pid, date, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
+  async clearRejected(pid){
+    try{ await sb.from('rejected_material').delete().eq('process_id', pid); }
+    catch(e){ console.error('clearRejected', pid, e); }
+    window.dispatchEvent(new Event('latao:data-changed'));
+  },
   async getConfig(pid){
     await ensureProcessInitialized(pid);
     try{
@@ -908,6 +977,7 @@ if(sb){
       .channel('latao-realtime')
       .on('postgres_changes', { event:'*', schema:'public', table:'schedule_days' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
       .on('postgres_changes', { event:'*', schema:'public', table:'real_production' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
+      .on('postgres_changes', { event:'*', schema:'public', table:'rejected_material' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
       .on('postgres_changes', { event:'*', schema:'public', table:'process_config' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
       .on('postgres_changes', { event:'*', schema:'public', table:'milestones_real' }, ()=> window.dispatchEvent(new Event('latao:data-changed')))
       .subscribe();
@@ -938,6 +1008,20 @@ function milestoneStatus(m, realMap){
    que aquele marco é confirmado em Marcos (o próximo intervalo começa do
    zero, no marco seguinte).
    ========================================================================= */
+/* =========================================================================
+   ÍNDICE DE MATERIAL REPROVADO — só Galvanoplastia e Forno.
+   Índice (%) = reprovado / (aprovado + reprovado) · 100
+   ========================================================================= */
+async function computeRejectionIndex(pid){
+  if(!tracksRejection(pid)) return null;
+  const [realMap, rejectedMap] = await Promise.all([db.getReal(pid), db.getRejected(pid)]);
+  const realAcum = Object.values(realMap).reduce((s,v)=> s + (Number(v)||0), 0);
+  const rejectedAcum = Object.values(rejectedMap).reduce((s,v)=> s + (Number(v)||0), 0);
+  const total = realAcum + rejectedAcum;
+  const indice = total > 0 ? (rejectedAcum/total*100) : 0;
+  return { realAcum, rejectedAcum, total, indice };
+}
+
 async function computeContainerProgress(pid){
   pid = pid || 'esteira';
   const realMap = await db.getMilestonesReal();
@@ -1417,6 +1501,17 @@ async function renderPainel(){
 
   renderGauge(d.aderencia, d.cfg);
 
+  const rejCard = document.getElementById('rejectionCard');
+  if(tracksRejection(currentProcess)){
+    rejCard.style.display = '';
+    const rej = await computeRejectionIndex(currentProcess);
+    document.getElementById('rejApproved').textContent = fmt1(rej.realAcum)+' t';
+    document.getElementById('rejRejected').textContent = fmt1(rej.rejectedAcum)+' t';
+    document.getElementById('rejIndice').textContent = fmt1(rej.indice)+'%';
+  } else {
+    rejCard.style.display = 'none';
+  }
+
   document.getElementById('statMetaAcum').textContent = fmt1(d.metaAteOntem)+' t';
   document.getElementById('statRealAcum').textContent = fmt1(d.realAcum)+' t';
   const diffEl = document.getElementById('statDiff');
@@ -1439,10 +1534,13 @@ async function renderPainel(){
    ========================================================================= */
 async function renderApontamento(){
   const d = await computeDerived(currentProcess);
+  const tracks = tracksRejection(currentProcess);
+  const rejectedMap = tracks ? await db.getRejected(currentProcess) : {};
+  document.getElementById('thReprovado').style.display = tracks ? '' : 'none';
   const tbody = document.getElementById('apontamentoBody');
   tbody.innerHTML = '';
   if(!d.rows.length){
-    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--ink-faint); font-style:italic; padding:22px 16px;">
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--ink-faint); font-style:italic; padding:22px 16px;">
       Nenhum dia cadastrado para ${processLabel(currentProcess)} ainda. Vá em <b>Cronograma</b> e adicione os dias e a meta diária deste processo.</td></tr>`;
     return;
   }
@@ -1454,7 +1552,7 @@ async function renderApontamento(){
       lastMonth = monthKey;
       const tr = document.createElement('tr');
       tr.className='month-sep';
-      tr.innerHTML = `<td colspan="5">${MONTH_PT[parseInt(m,10)-1]} de ${y}</td>`;
+      tr.innerHTML = `<td colspan="6">${MONTH_PT[parseInt(m,10)-1]} de ${y}</td>`;
       tbody.appendChild(tr);
     }
     const tr = document.createElement('tr');
@@ -1467,11 +1565,14 @@ async function renderApontamento(){
       const st = statusFromPct(p, d.cfg);
       statusBadge = `<span class="badge ${st}">${st==='ok'?'no prazo':st==='warn'?'atenção':'crítico'}</span>`;
     }
+    const rejVal = rejectedMap[r.date];
+    const rejCell = !tracks ? '' : (r.isOff ? '<td>—</td>' : `<td><input type="number" step="0.01" min="0" data-date="${r.date}" class="rejected-input" value="${rejVal!==undefined?rejVal:''}" placeholder="0,0"></td>`);
     tr.innerHTML = `
       <td class="mono">${r.date.split('-').reverse().join('/')}</td>
       <td>${weekdayOf(r.date)}</td>
       <td class="mono">${r.isOff ? '—' : fmt1(r.meta)}</td>
       <td>${r.isOff ? '—' : `<input type="number" step="0.01" min="0" data-date="${r.date}" class="real-input" value="${r.real!==null?r.real:''}" placeholder="0,0">`}</td>
+      ${tracks ? rejCell : ''}
       <td>${statusBadge}</td>
     `;
     tbody.appendChild(tr);
@@ -1481,6 +1582,13 @@ async function renderApontamento(){
     inp.addEventListener('change', async e=>{
       await db.setReal(currentProcess, e.target.dataset.date, e.target.value);
       showToast('Apontamento salvo — ' + processLabel(currentProcess));
+      renderApontamento();
+    });
+  });
+  tbody.querySelectorAll('.rejected-input').forEach(inp=>{
+    inp.addEventListener('change', async e=>{
+      await db.setRejected(currentProcess, e.target.dataset.date, e.target.value);
+      showToast('Material reprovado salvo — ' + processLabel(currentProcess));
       renderApontamento();
     });
   });
@@ -1704,6 +1812,15 @@ async function buildTvProcessHTML(pid){
   const pctDisplay = Math.max(0, Math.min(d.aderencia, 999));
   const ringPct = Math.max(0, Math.min(d.aderencia, 100));
 
+  const rejection = tracksRejection(pid) ? await computeRejectionIndex(pid) : null;
+  const rejectionHTML = !rejection ? '' : `
+    <div class="tv-rejection">
+      <div class="tv-rejection-label">Índice de material reprovado</div>
+      <div class="tv-rejection-pct">${fmt1(rejection.indice)}%</div>
+      <div class="tv-rejection-sub">${fmt1(rejection.rejectedAcum)} t reprovadas / ${fmt1(rejection.total)} t processadas</div>
+    </div>
+  `;
+
   /* Produto finalizado = apontamento da Esteira de Seleção, sempre — é o
      último processo, então é o que efetivamente conta como pronto para
      embarque. Por isso esse container usa sempre 'esteira', em qualquer
@@ -1757,6 +1874,7 @@ async function buildTvProcessHTML(pid){
       </div>
     </div>
     ${miniContainerHTML}
+    ${rejectionHTML}
     <div class="tv-footer">
       <span>${d.cursorDate ? 'Última produção lançada: '+fmtDateLong(d.cursorDate) : 'Nenhum apontamento lançado ainda'}</span>
       <span>${d.rows.length ? 'Cronograma: '+fmtDateShort(d.rows[0].date)+' a '+fmtDateShort(d.rows[d.rows.length-1].date) : ''}</span>
